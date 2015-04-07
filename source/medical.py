@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from medical_columns import *
+from column_info import *
 #from sqlalchemy import create_engine
 #import psycopg2
 
@@ -50,7 +50,6 @@ df['language']=df['lang']
 df.replace(to_replace=translation_dictionary, inplace=True)
 
 df.ix[df.HCPstatus.isin(["00","10","09","19","40","49","S0","S9"]),'HCplanText']="z No Plan"
-
 
 #Ethnicity, Language, City replacements go here before we do wide to long.
 
@@ -184,14 +183,6 @@ g.loc[((g.EligibilityStatus.dropna().astype(str).str[0].astype(int) < 5)) & (g.R
 
 g.sort(['CIN','calendar']).to_csv('dupes')
 
-df['HCplanText']=df['HCPcode'].replace("300","Alliance")
-df['HCplanText']=df['HCplanText'].replace("340","Blue Cross")
-df['HCplanText']=df['HCplanText'].replace("051","Center for Elders")
-df['HCplanText']=df['HCplanText'].replace("056","ONLOK Seniors")
-df['HCplanText']=df['HCplanText'].replace("000","z No Plan")
-#different in each code whether other or z
-df['HCplanText']=df['HCplanText'].replace(np.nan,"z No Plan")
-
 df.ix[df.HCPstatus.isin(["00","10","09","19","40","49","S0","S9"]),'HCplanText']="z No Plan"
 df.ix[df.race.isin(["4","7","A","C","H","J","K","M","N","P","R","T","V"]),'ethnicity']="Asian/PI"
 df.ix[df.race.isin(["8","9",np.nan,"0"]),'ethnicity']="Unknown"
@@ -201,38 +192,6 @@ df['ethnicity']=df['ethnicity'].replace("2","Latino")
 df['ethnicity']=df['ethnicity'].replace("3","African American")
 df['ethnicity']=df['ethnicity'].replace("5","Native American")
 df['ethnicity']=df['ethnicity'].replace("Z","Other")
-
-df['language']=df['lang'].replace("0","American Sign")
-df['lang']=df['lang'].replace("1","Spanish")
-df['lang']=df['lang'].replace("2","Cantonese")
-df['lang']=df['lang'].replace("3","Japanese")
-df['lang']=df['lang'].replace("4","Korean")
-df['lang']=df['lang'].replace("5","Tagalog")
-df['lang']=df['lang'].replace("6","Other")
-df['lang']=df['lang'].replace("7","English")
-df['lang']=df['lang'].replace("8","Missing")
-df['lang']=df['lang'].replace("9","Missing")
-df['lang']=df['lang'].replace("A","Other Sign")
-df['lang']=df['lang'].replace("B","Chinese")
-df['lang']=df['lang'].replace("C","Other Chinese")
-df['lang']=df['lang'].replace("D","Cambodian")
-df['lang']=df['lang'].replace("E","Armenian")
-df['lang']=df['lang'].replace("F","Llacano")
-df['lang']=df['lang'].replace("G","Mien")
-df['lang']=df['lang'].replace("H","Hmong")
-df['lang']=df['lang'].replace("I","Lao")
-df['lang']=df['lang'].replace("J","Hebrew")
-df['lang']=df['lang'].replace("K","French")
-df['lang']=df['lang'].replace("M","Polish")
-df['lang']=df['lang'].replace("N","Russian")
-df['lang']=df['lang'].replace("P","Portugese")
-df['lang']=df['lang'].replace("Q","Italian")
-df['lang']=df['lang'].replace("R","Arabic")
-df['lang']=df['lang'].replace("S","Samoan")
-df['lang']=df['lang'].replace("T","Thai")
-df['lang']=df['lang'].replace("U","Farsi")
-df['lang']=df['lang'].replace("V","Vietnamese")
-df['lang']=df['lang'].replace(np.nan,"Missing")    
 
 df.city=df.city.str.upper()
 df.city=df['city'].map(lambda x: x.lstrip(' '))
