@@ -14,13 +14,13 @@ language_translation = {'B': 'Chinese', 'P': 'Portugese', 'A': 'Other Sign', 'D'
                         'R': 'Arabic', 'Q': 'Italian', 'M': 'Polish', 'F': 'Llacano', 
                         '9': 'Missing', '8': 'Missing', 'I': 'Lao', 'H': 'Hmong', '6': 'Other', 
                         'T': 'Thai', 'K': 'French', 'E': 'Armenian'}
-
+"""
 with open('city_names.json', 'r') as f:
     city_translation = json.load(f)
+"""
 
 translation_dictionary = {"HCplanText":hcpcode_translation,
-                          "language":language_translation,
-                          "city":city_translation}
+                          "language":language_translation}
 
 
 

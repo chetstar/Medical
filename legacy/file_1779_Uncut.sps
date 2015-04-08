@@ -157,6 +157,7 @@ match files /file=* /by cin /first=Cin1.
 if eligibilityStatus = "889" eligibilityStatus = " ".
 select if cin1=1.
 select if cin ne " " .
+
 COMPUTE bday=NUMBER(concat(month,"/",day, "/", year),ADATE10).
 FORMATS bday (date11).
 
@@ -228,10 +229,9 @@ SAVE OUTFILE=
 !enddefine.
 !savefile fn=@ThisMonthsMedsFile.
 
-
+*Copy medsCurrentUncut from I drive to K drive.
 get FILE='I:\MediCalData\medsCurrentUncut.sav'.
 save outfile='K:\MediCalData\medsCurrentUncut.sav'.
-
 
 get FILE='I:\MediCalData\medsCurrentUncut.sav'  /keep
 CIN

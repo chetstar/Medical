@@ -1,0 +1,37 @@
+This is a description of what uncut does that needs to be reimplemented in python.
+
+1. Bring in data.  This is simple with the fixed width file and the info in column_names.
+
+2. Sort CIN/eligibility data lowest to highest. Ignore empty data. Take the one that is highest.
+
+3. Create Bday Column
+
+4. Create and populate language column from codes in lang.
+
+5. Fix City names inplace.
+
+6. Replace codes with english in ethnicity.  The SPSS code groups a bunch of codes into asian/PI.
+The data dictionary lists the actual ethnicity for each of these codes.  Is the way the spss does
+it the way we need to do it?
+
+7. Create Calendar column from eligMonth and EligYear
+
+8. Save 'Meds%MonthUncut'
+   Save 'MedsCurrentUncut'
+
+   With the columns:
+
+ [CaseName, respCounty, language, calendar, ssn, sex, ethnicity, street, state, zip, CIN, bday, 
+ fname, lname, suffix, middleInitial, city, AidCode, OHC, SOCamount,  EligibilityStatus, 
+ HCplanText, ResCounty, Govt, CountyCaseCode, CountyAidCode, CountyCaseID, MedicareStatus,
+ HIC, CarrierCode, FederalContractNumber, PlanID, TypeID, HCPstatus, HCPcode, region,
+ AidCodeSP1, RespCountySP1, EligibilityStatusSP1, AidCodeSP2, RespCountySP2, EligibilityStatusSP2,
+ AidCodeSP3, RespCountySP3, EligibilityStatusSP3]
+
+That only saves the first month.
+
+Optimizations: Only load the columns we need from the medi-cal file or at least get rid of the
+the ones we don't need immediatly after bringing all of them in.
+
+9. Other stuff.  Work till here and test savReaderWriter.
+

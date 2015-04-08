@@ -1,0 +1,3 @@
+drop_duplicates by default will keep the first row of any duplicates it finds and drop the rest.
+there is a flag you can pass to it, take_last, that switches that behavior and keeps the last of
+the duplicates and gets rid of the rest.

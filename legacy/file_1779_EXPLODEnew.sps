@@ -521,7 +521,7 @@ exe.
 
 COMPUTE calendar  = date.MOYR(eligMonth, eligYear).
 
-
+*This saves a file with 6 columns.
 DEFINE !savefile (fn=!TOKENS(1))
 agg outfile=
 !quote(!concat('I:\temp\MedsCaseCodesStaging',!fn,'.sav'))
@@ -529,7 +529,6 @@ agg outfile=
 /MedsMonth = max(Calendar).
 !enddefine.
 !savefile fn=@ThisMonthsMedsFile.
-
 
  * agg outfile='I:\Temp\MedsCaseCodesStaging.sav' 
 /break=cin GOVT EWcode CountyCaseCode  CountyCaseID 
@@ -1037,10 +1036,12 @@ LOOP #cnt=1 to 16.
 -   COMPUTE RespCountySP3=RespCountySP3_15.  
 -   COMPUTE EligibilityStatusSP3=EligibilityStatusSP3_15.  
 - END IF.
+***That big chunck does a wide to long by month****
 
 
-FORMATS Calendar(MOYR6).
+FORMATS Calendar(MOYR6).***This just formats the view that the user sees but doesn't change the data.
 
+*Keep only saves the listed columns.
 - xsave OUTFILE='I:\temp\MedsEligExplodeX.sav'
 	/KEEP CIN Calendar  EligibilityStatus AidCode RespCounty SOCamount MedicareStatus HCPStatus HCPCode OHC  AidCodeSP1    
 RespCountySP1 EligibilityStatusSP1  aidCodeSP2  RespCountySP2  EligibilityStatusSP2   AidCodeSP3 RespCountySP3   EligibilityStatusSP3  .
@@ -1064,6 +1065,10 @@ if Number(substr(EligibilityStatus,1,1),f1) lt 5  OR
  Number(substr(EligibilityStatusSP2,1,1),f1) lt 5  OR
  Number(substr(EligibilityStatusSP3,1,1),f1) lt 5 MCelig=1.
 
+*Keep all four SPs if one of them is eligible. (The row)
+*Group by person and month and mark the last record. Gets best eligibility.
+*One record per person per month. (Everybody and the months they were eligible.)
+
 sort cases by cin calendar MCelig .
 match files/file=* /by cin calendar/last=cinCal1.
 *match files/file=* /by cin /last=cin1.
@@ -1071,6 +1076,7 @@ match files/file=* /by cin calendar/last=cinCal1.
 select if cinCal1=1 AND  cin  ne " ".
 *select if mcelig=1.
 
+*This brings in the aidcode short info table.
 sort cases by aidCode.
 match files/table='I:\temp\AidCodesShort.sav' /file=* /by AidCode /drop 
 CinCal1 MCelig  .

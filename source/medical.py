@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from column_info import *
+from column_info import translation_dictionary, column_names, column_specifications
 #from sqlalchemy import create_engine
 #import psycopg2
 
@@ -67,16 +67,17 @@ df=pd.wide_to_long(df,[ 'eligYear', 'eligMonth','xAidCode','xRespCounty', 'ResCo
                         'HFEligDaySP','AidCodeSP3', 'RespCountySP3','EligibilityStatusSP3'],
                    i='id',j='varstocases')
 
+#Why are we multiplying eligYear by 10000 and eligMonth by 100?
+#The format='%Y%m%d' takes an eight digit long number and turns it into a datetime object.
+#We need to create that eight digit number, so to move the year left by four digits, * by 10000.
+df['calendar'] = pd.to_datetime(df['eligYear']*10000 + df['eligMonth']*100 + 1, format='%Y%m%d')
+
 #The index gets rearranged with the wide_to_long, reset it.
 df=df.reset_index()
 
 #Wide to long by aidcode.  Sort by j-index.
 #If aidcodeN contains ("9K","9M","9N","9R","9U") select that row.
-
-#Why are we multiplying eligYear by 10000 and eligMonth by 100?
-#The format='%Y%m%d' takes an eight digit long number and turns it into a datetime object.
-#We need to create that eight digit number, so to move the year left by four digits, * by 10000.
-df['calendar'] = pd.to_datetime(df['eligYear']*10000 + df['eligMonth']*100 + 1, format='%Y%m%d')
+#return to previous df.
 
 #For each instance of eligibilityStatus create a series of the first digit of elgigbilityStatus.
 w = df.EligibilityStatusSP3.dropna().astype(str).str[0].astype(int)
@@ -106,7 +107,15 @@ aidcodesshort= pd.read_csv(aidcodes_file,header=0)
 g=pd.merge(y, ccstext, how='left',left_on='AidCode',right_on='AidCode')
 g=pd.merge(g, aidcodesshort, how='left',left_on='AidCode',right_on='aidcode')
 
-#No idea what this is doing.
+#Save file (4) medCSS%month.sav (only about six columns)
+#return to original df.
+
+#Make small demographics files
+#Update if there, insert if not.
+
+#Everything after this is in explode.
+
+#if aidcode is in list and mcelig is one, SSI is one.
 g.ix[g.AidCode.isin(["10","20","60"]) & (g.MCelig ==1),'SSI']=1
 
 #get a series of the first digits of non-nan numbers
@@ -136,6 +145,7 @@ g['FFP']=g['FFP'].fillna(99)#Does it make sense to do this?
 #This line does nothing.
 ((g.EligibilityStatus.dropna().astype(str).str[0].astype(int) < 5).astype(int)) & (g.RespCounty==1) & (g.Full==1) & (g.FFP==100)
 
+
 g.ix[1,'EligibilityStatus']=2
 g.ix[1,'RespCounty']=1
 g.ix[1,'Full']=1
@@ -143,7 +153,6 @@ g.ix[1,'FFP']=100
 
 g[['EligibilityStatus','RespCounty','Full','FFP']].head()
 
-#Why do we do these lines of code?
 g['eligibility_month']=None
 g['eligibility_year']=None
 g['slot']=None
@@ -151,7 +160,7 @@ g['primary_Aid_code']=None
 g['mcRank']=None
 g['ELIGIBILITY_COUNTY_code']=None
 
-"""
+
 def f(row):
     if (row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 and (row.Full==1) and (row.FFP==100)):
         row[['eligibility_year', 'eligibility_month','primary_Aid_code','mcRank','ELIGIBILITY_COUNTY_code']] = row['eligYear'],row['eligMonth'],row['aidcode'],1,row['RespCounty']
@@ -165,7 +174,7 @@ return row
     if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 & (row.Full==1) & (row.FFP==65):
     if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5  & (row.Full==1) & (row.FFP==50):
     if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1  & (row.FFP==100):
-"""
+
 """
 do if Number(substr(EligibilityStatus,1,1),f1) lt 5  AND RespCounty = "01" AND FFP=100 .
     if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.FFP==65):
