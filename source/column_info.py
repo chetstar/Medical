@@ -14,15 +14,13 @@ language_translation = {'B': 'Chinese', 'P': 'Portugese', 'A': 'Other Sign', 'D'
                         'R': 'Arabic', 'Q': 'Italian', 'M': 'Polish', 'F': 'Llacano', 
                         '9': 'Missing', '8': 'Missing', 'I': 'Lao', 'H': 'Hmong', '6': 'Other', 
                         'T': 'Thai', 'K': 'French', 'E': 'Armenian'}
-"""
+
 with open('city_names.json', 'r') as f:
     city_translation = json.load(f)
-"""
 
 translation_dictionary = {"HCplanText":hcpcode_translation,
-                          "language":language_translation}
-
-
+                          "language":language_translation,
+                          "city":city_translation}
 
 column_names = ('ssn','HIC','V2', 'year', 'month','day','sex','race', 'lang', 'V4', 'CaseName', 'lname','fname','V8', 'street', 'V12','city', 'V13','zip','EWcode', 'CIN','GOVT', 'CountyCaseCode', 
     'CountyAidCode','CountyCaseID', 'v60','CMS','v601', 'eligYear', 'eligMonth','xAidCode','xRespCounty', 'ResCounty','xEligibilityStatus','SOCamount','MedicareStatus', 'CarrierCode','FederalContractNumber',
