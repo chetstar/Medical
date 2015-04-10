@@ -63,3 +63,8 @@ target/
 
 #OSX
 .DS_store
+
+#project_specific
+/test
+/data
+config.py

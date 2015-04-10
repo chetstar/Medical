@@ -15,15 +15,23 @@ language_translation = {'B': 'Chinese', 'P': 'Portugese', 'A': 'Other Sign', 'D'
                         '9': 'Missing', '8': 'Missing', 'I': 'Lao', 'H': 'Hmong', '6': 'Other', 
                         'T': 'Thai', 'K': 'French', 'E': 'Armenian'}
 
+ethnicity_translation = {'A': 'Asian/PI', 'C': 'Asian/PI', '0': 'Unknown', 'H': 'Asian/PI', 
+                         'K': 'Asian/PI', 'J': 'Asian/PI', 'M': 'Asian/PI', 'N': 'Asian/PI', 
+                         'P': 'Asian/PI', 'R': 'Asian/PI', '4': 'Asian/PI', '7': 'Asian/PI', 
+                         'V': 'Asian/PI', '9': 'Unknown', '8': 'Unknown', 'T': 'Asian/PI',
+                         '1': 'Caucasian', '2': 'Latino', '3': 'Aftrican American',
+                         '5': 'Native American', 'Z': 'Other'}
+
 with open('city_names.json', 'r') as f:
     city_translation = json.load(f)
 
 translation_dictionary = {"HCplanText":hcpcode_translation,
                           "language":language_translation,
-                          "city":city_translation}
+                          "city":city_translation,
+                          "ethnicity":ethnicity_translation}
 
-column_names = ('ssn','HIC','V2', 'year', 'month','day','sex','race', 'lang', 'V4', 'CaseName', 'lname','fname','V8', 'street', 'V12','city', 'V13','zip','EWcode', 'CIN','GOVT', 'CountyCaseCode', 
-    'CountyAidCode','CountyCaseID', 'v60','CMS','v601', 'eligYear', 'eligMonth','xAidCode','xRespCounty', 'ResCounty','xEligibilityStatus','SOCamount','MedicareStatus', 'CarrierCode','FederalContractNumber',
+column_names = ('ssn','HIC','V2', 'year', 'month','day','sex','race', 'lang', 'V4', 'CaseName', 'lname','fname','suffix', 'street', 'V12','city', 'state','zip','EWcode', 'CIN','GOVT', 'CountyCaseCode', 
+    'CountyAidCode','CountyCaseID', 'v60','CMS','v601', 'eligYear', 'eligMonth','xAidCode','RespCounty', 'ResCounty','xEligibilityStatus','SOCamount','MedicareStatus', 'CarrierCode','FederalContractNumber',
     'PlanID', 'TypeID', 'v16','HCPstatus','HCPcode','OHC','v70','AidCodeSP1', 'RespCountySP1','EligibilityStatusSP1', 'AidCodeSP2', 'RespCountySP2','EligibilityStatusSP2', 'SOCpctSP', 'HFEligDaySP',
     'AidCodeSP3', 'RespCountySP3','EligibilityStatusSP3', 'V17','eligYear1','eligMonth1', 'xAidCode1', 'xRespCounty1','ResCounty1', 'xEligibilityStatus1', 'SOCamount1', 'MedicareStatus1','CarrierCode1', 
     'FederalContractNumber1', 'PlanID1','TypeID1','V20','HCPstatus1', 'HCPcode1', 'OHC1', 'V21','AidCodeSP11', 'RespCountySP11','EligibilityStatusSP11', 'AidCodeSP21', 'RespCountySP21',
@@ -76,3 +84,7 @@ for key in translation_dictionary:
         if len(value) > max_value_length:
             max_value_length = len(value)
     translation_lengths[key] = max_value_length
+
+column_converters = {}
+for name in column_names:
+    column_converters[name]=str
