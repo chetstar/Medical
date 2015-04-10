@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
-from column_info import translation_dictionary, column_names, column_specifications
+from medical_meta import (translation_dictionary, 
+                          column_names, 
+                          column_specifications, 
+                          column_lengths,
+                          translation_lengths)
 from savReaderWriter import SavWriter
 
 def load_medical_data(file_location):

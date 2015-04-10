@@ -7,7 +7,7 @@ from column_info import translation_dictionary, column_names, column_specificati
 #import psycopg2
 
 MedsFolder='/media/decisionsupport/meinzer/pullmedstest/'
-medical_tape = '/Users/irisweiss/greg/achs/testmedsx.txt'
+medical_tape = ''
 csstext_file = '../legacy/CCStext.csv'
 aidcodes_file = '../legacy/AidCodesShort.csv'
 
