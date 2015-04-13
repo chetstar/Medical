@@ -24,6 +24,9 @@ df.rename(columns={'xAidCode':'AidCode',#'xRespCounty':'RespCounty',
 df.sort(['CIN','EligibilityStatus'], inplace=True)
 df.drop_duplicates(subset='CIN', inplace=True)
 
+df['calendar']=df['eligYear'] + df['eligMonth']
+df['bday']=df['month'] + df['day'] + df['year']
+
 #Create HCplanText column and populate with HCPcode data.
 df['HCplanText']=df['HCPcode']
 #Create language column and populate with the codes from lang.
@@ -44,12 +47,14 @@ df.ix[df.HCPstatus.isin(["00","10","09","19","40","49","S0","S9"]),'HCplanText']
 columns_to_save = ['CaseName', 'RespCounty', 'language', 'calendar', 'ssn', 'sex', 'ethnicity',
                    'street', 'state', 'zip', 'CIN', 'bday', 'fname', 'lname', 'suffix',
                    'middleInitial', 'city', 'AidCode', 'OHC', 'SOCamount', 'EligibilityStatus',
-                   'HCplanText', 'ResCounty', 'Govt', 'CountyCaseCode', 'CountyAidCode', 
+                   'HCplanText', 'ResCounty', 'GOVT', 'CountyCaseCode', 'CountyAidCode', 
                    'CountyCaseID', 'MedicareStatus', 'HIC', 'CarrierCode', 
                    'FederalContractNumber', 'PlanID', 'TypeID', 'HCPstatus', 'HCPcode', 
-                   'region', 'AidCodeSP1', 'RespCountySP1', 'EligibilityStatusSP1', 'AidCodeSP2', 
+                   'AidCodeSP1', 'RespCountySP1', 'EligibilityStatusSP1', 'AidCodeSP2', 
                    'RespCountySP2', 'EligibilityStatusSP2', 'AidCodeSP3', 'RespCountySP3', 
                    'EligibilityStatusSP3']
+#Took out 'region' after 'HCPcode'
+
 
 #Create an SPSS .sav file with the columns named in columns_to_save.
 mf.create_sav_file(meds_current_uncut_file, df, columns_to_save)
