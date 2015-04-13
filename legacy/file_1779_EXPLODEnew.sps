@@ -2,11 +2,11 @@
 insert file='I:\modules\AidCodesShort.sps'.
 
 DEFINE @ThisMonthMEDStext() 
-201412
+201504
 !ENDDEFINE.
 
 DEFINE @ThisMonthsMedsFile() 
-Dec14
+Apr15
 !ENDDEFINE.
 
 
@@ -521,7 +521,7 @@ exe.
 
 COMPUTE calendar  = date.MOYR(eligMonth, eligYear).
 
-*This saves a file with 6 columns.
+
 DEFINE !savefile (fn=!TOKENS(1))
 agg outfile=
 !quote(!concat('I:\temp\MedsCaseCodesStaging',!fn,'.sav'))
@@ -529,6 +529,7 @@ agg outfile=
 /MedsMonth = max(Calendar).
 !enddefine.
 !savefile fn=@ThisMonthsMedsFile.
+
 
  * agg outfile='I:\Temp\MedsCaseCodesStaging.sav' 
 /break=cin GOVT EWcode CountyCaseCode  CountyCaseID 
@@ -1036,12 +1037,10 @@ LOOP #cnt=1 to 16.
 -   COMPUTE RespCountySP3=RespCountySP3_15.  
 -   COMPUTE EligibilityStatusSP3=EligibilityStatusSP3_15.  
 - END IF.
-***That big chunck does a wide to long by month****
 
 
-FORMATS Calendar(MOYR6).***This just formats the view that the user sees but doesn't change the data.
+FORMATS Calendar(MOYR6).
 
-*Keep only saves the listed columns.
 - xsave OUTFILE='I:\temp\MedsEligExplodeX.sav'
 	/KEEP CIN Calendar  EligibilityStatus AidCode RespCounty SOCamount MedicareStatus HCPStatus HCPCode OHC  AidCodeSP1    
 RespCountySP1 EligibilityStatusSP1  aidCodeSP2  RespCountySP2  EligibilityStatusSP2   AidCodeSP3 RespCountySP3   EligibilityStatusSP3  .
@@ -1065,10 +1064,6 @@ if Number(substr(EligibilityStatus,1,1),f1) lt 5  OR
  Number(substr(EligibilityStatusSP2,1,1),f1) lt 5  OR
  Number(substr(EligibilityStatusSP3,1,1),f1) lt 5 MCelig=1.
 
-*Keep all four SPs if one of them is eligible. (The row)
-*Group by person and month and mark the last record. Gets best eligibility.
-*One record per person per month. (Everybody and the months they were eligible.)
-
 sort cases by cin calendar MCelig .
 match files/file=* /by cin calendar/last=cinCal1.
 *match files/file=* /by cin /last=cin1.
@@ -1076,7 +1071,6 @@ match files/file=* /by cin calendar/last=cinCal1.
 select if cinCal1=1 AND  cin  ne " ".
 *select if mcelig=1.
 
-*This brings in the aidcode short info table.
 sort cases by aidCode.
 match files/table='I:\temp\AidCodesShort.sav' /file=* /by AidCode /drop 
 CinCal1 MCelig  .
@@ -1149,21 +1143,21 @@ if any(substr(EligStatusBogus,3,1) ,"2","3","5") RetroMC=1.
 *****String SRC(A1).
 *****if any(substr(EligStatusBogus,3,1) ,"2","3","5") SRC = "C".
 
-*6/14 ccs code always in position1 - safety structure below.
-
 if Number(substr(EligibilityStatus,1,1),f1) = 5  OR 
  Number(substr(EligibilityStatusSP1,1,1),f1) = 5  OR
  Number(substr(EligibilityStatusSP2,1,1),f1) = 5  OR
  Number(substr(EligibilityStatusSP3,1,1),f1) = 5 SOCmc=1.
 
+
+*6/14 ccs code always in position1 - safety structure below.
 string CCSaidCode(a2).
-do if Any(AidCodeSP2,"9K","9M","9N","9R","9U").
+do if Any(AidCodeSP2,"9K","9M","9N","9R","9U","9V","9W").
 compute   CCSAidCode  =  AidCodeSP2.
-Else if Any(AidCodeSP1,"9K","9M","9N","9R","9U").
+Else if Any(AidCodeSP1,"9K","9M","9N","9R","9U","9V","9W").
 compute   CCSAidCode  =  AidCodeSP1.
-Else if Any(AidCodeSP3,"9K","9M","9N","9R","9U").
+Else if Any(AidCodeSP3,"9K","9M","9N","9R","9U","9V","9W").
 compute  CCSAidCode  =  AidCodeSP3.
-Else if Any(AidCode,"9K","9M","9N","9R","9U").
+Else if Any(AidCode,"9K","9M","9N","9R","9U","9V","9W").
 compute  CCSAidCode  =  AidCode.
 end if.
 
@@ -1249,11 +1243,11 @@ save outfile='I:\temp\MedsExplodeDB.sav' /drop keep.
  * FREQ AIDCODE.
  
 DEFINE @ThisMonthMEDStext() 
-201412
+201504
 !ENDDEFINE.
 
 DEFINE @ThisMonthsMedsFile() 
-Dec14
+Apr15
 !ENDDEFINE.
 
 
@@ -1282,6 +1276,9 @@ socMC.
 
 !enddefine.
 !savefile fn=@ThisMonthsMedsFile.
+
+
+*get FILE='I:\MedicalData\MedsExplodeCurrentNoDupeAidCode.sav' .
 
 select if primary_Aid_Code ne " " OR socMC=1  OR (medicareStatus ne " " And MedicareStatus ne "990") OR ccsAidCode ne " " OR disabled=1 OR ihssAidCode ne " ".
 rename vars EligibilityStatus = SSIeligStatus.
@@ -1428,19 +1425,21 @@ SAVE TRANSLATE /TYPE=ODBC
     'Common;WSID=HP2UA3081880;'
  /table= 'MedsExplode' /MAP/append.
 
+ * get file ='I:\medicalData\MedscurrentUncut.sav' .
+ * disp vars.
 
 
  * GET DATA  /TYPE=ODBC
   /CONNECT='DSN=MHS_CGdecisionSupport;UID=;APP=IBM SPSS Products: Statistics '+
     'Common;WSID=WINSPSSV1;Trusted_Connection=Yes'
   /SQL='SELECT CIN,calendar,primary_Aid_Code AS AidCode,  ELIGIBILITY_COUNTY_code  AS eligCounty, ' +
- 'mcRank,SOCmc FROM MedsExplode ORDER BY cin, calendar '
+ 'mcRank,SOCmc FROM MedsExplode where Calendar >= {ts ''2013-12-01 00:00:00''} AND Calendar < {ts ''2014-01-01 00:00:00''} ORDER BY cin, calendar '
   /ASSUMEDSTRWIDTH=25.
 
- * if eligCounty = "01" keep=1.
- * if not  missing(SocMC) keep=1.
+ * select if eligCounty = "01"  OR SOCmc=1 .
 
- * if not any(eligCounty, " ", "01")  AND socMC=1 drop=1.
+ * match files/table='I:\medicalData\MedscurrentUncut.sav' /rename calendar = bogus1 aidCode=bogus2 /file=* /by cin.
+
  * if eligCounty = "01" ACMC=1.
 
  * agg outfile=* mode=addVars over=yes
@@ -1453,16 +1452,25 @@ SAVE TRANSLATE /TYPE=ODBC
  * compute county = sum(number(minEligCounty,f2),number(maxEligCounty,f2)).
  * end if .
 
- * if county gt  2 AND SOCmc=1 AND HASacMC ne 1  DropMe=1.
- * select if keep=1.
+ * if county gt  2 AND SOCmc=1 AND missing(HASacMC)  DropMe=1.
+ * if not any(eligCounty, " ", "01")  AND socMC=1 dropMe=1.
+ * freq dropMe.
  * select if missing(DropMe).
+ * freq rescounty.
+
+
+*select if keep=1.
  * select if missing(drop).
 
  * if ACMC=1 AND SOCmc=1 SOCmc=$sysmis.
 
- * save outfile='I:\temp\MCwork.sav' /drop keep dropMe Drop HasACmc minEligCounty MaxEligCounty county.
+ * save outfile='I:\temp\MCwork.sav' .
+
+
+*/drop keep dropMe  HasACmc minEligCounty MaxEligCounty county.
 
  * get file='I:\temp\MCwork.sav'.
+ * if eligCounty="01" AND socMC=1 SOCmc=0.
 
  * select if ANY(xdate.year(Calendar),2008,2009).
  * sort cases by aidCode.
@@ -1471,8 +1479,10 @@ SAVE TRANSLATE /TYPE=ODBC
  * agg outfile='I:\temp\CalMC1.sav'
    /break=Calendar
    /MCelig=sum(ACmc)
-   /Full = sum(full)
-   /SOCmc = sum(SOCmc).
+   /unmetSOCmc = sum(SOCmc).
+
+ * get file='I:\temp\CalMC1.sav'.
+
 
  * get file='I:\temp\MCwork.sav'.
  * select if ANY(xdate.year(Calendar),2010,2011).
@@ -1551,13 +1561,16 @@ OHC.
 GET DATA  /TYPE=ODBC
   /CONNECT='DSN=MHS_CGdecisionSupport;UID=;APP=IBM SPSS Products: Statistics '+
     'Common;WSID=WINSPSSV1;Trusted_Connection=Yes'
-  /SQL='SELECT * FROM MedsExplode  where Calendar >= {ts ''2012-07-01 00:00:00''} ORDER BY cin, calendar '
+  /SQL='SELECT * FROM MedsExplode  where Calendar >= {ts ''2012-01-01 00:00:00''} ORDER BY cin, calendar '
   /ASSUMEDSTRWIDTH=25.
 
 rename vars primary_Aid_Code = AidCode ELIGIBILITY_COUNTY_code =eligCounty.
 select if aidCode ne " " .
 formats calendar(moyr6).
-
+ * sort cases by cin calendar.
+ * match files/file=* /by cin calendar/first=calCase1.
+ * freq  calCase1.
+ * select if calCase1=1.
 save outfile=  '//covenas/decisionsupport/temp\MedsExplodeDB.sav' /keep cin
 calendar
 SSI
@@ -1568,7 +1581,14 @@ AidCode
 HCPstatus
 HCPcode.
 
-get file=  '//covenas/decisionsupport/temp\MedsExplodeDB.sav' .
+*get file=  '//covenas/decisionsupport/temp\MedsExplodeDB.sav' .
+select if dateDiff($time, Calendar,"months") lt 37.
+select if foster=1.
+AGG OUTfile='I:\fostermc.sav'
+   /BREAK=CIN
+   /fOSTERmc = MAX(foster).
+
+ * get file=  '//covenas/decisionsupport/temp\MedsExplodeDB.sav' .
 *get file=  '//covenas/decisionsupport/temp\MedsExplodeDB.sav'.
 
 
@@ -1581,5 +1601,26 @@ get file=  '//covenas/decisionsupport/temp\MedsExplodeDB.sav' .
  * sort cases by FFP.
  * split file by FFP.
  * freq AidCode.
+
+
+get file =  '//covenas/decisionsupport/temp\MedsExplodeDB.sav'
+   /keep cin calendar SSI Foster Disabled EligCounty AidCode.
+
+select if EligCounty ne " ".
+
+compute counter=1.
+aggregate outfile =  '//covenas/decisionsupport/temp\MaxMedsInDB.sav'
+  /break=counter   
+ /calendar = max(calendar).
+
+sort cases by cin calendar.
+match files /file=* /by cin /last=keep.
+select if keep=1.
+
+rename variables aidCode = LastAidCode.
+
+aggregate outfile =  '//covenas/decisionsupport/temp\MedsExplodeDBWithMaxCalendar.sav'
+   /break = cin LastAidCode
+   /MaxMediCal = max(calendar).
 
 
