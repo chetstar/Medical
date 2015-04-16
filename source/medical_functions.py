@@ -1,10 +1,11 @@
+import numpy as np
 import pandas as pd
 from medical_meta import (translation_dictionary, 
                           column_names, 
                           column_specifications, 
-                          column_lengths,
-                          translation_lengths,
-                          column_converters)
+                          variable_types,
+                          variable_formats,
+                          converters)
 from savReaderWriter import SavWriter
 
 def load_medical_data(file_location):
@@ -12,23 +13,35 @@ def load_medical_data(file_location):
                      colspecs = column_specifications,
                      header = None,
                      names = column_names, 
-                     parse_dates = {'bday':['year','month','day'],
-                                    'calendar':['eligYear',"eligMonth"]},
                      keep_date_col = True,
-                     converters = column_converters)
+                     converters = converters)
     return df
 
-def create_sav_file(file_name, dataframe, columns_to_save):
-    length_dictionary = {'bday':10,'calendar':10}
-    for name in columns_to_save:
-        if name in column_lengths:
-            length_dictionary[name] = column_lengths[name]
-        if name in translation_dictionary:
-            length_dictionary[name] = translation_lengths[name]
+def create_sav_file(file_name, dataframe, columns_to_save, new_types, new_formats):
 
-    print(length_dictionary)
-    with SavWriter(file_name, columns_to_save, length_dictionary) as writer:
+    var_types = variable_types
+    var_formats = variable_formats
+
+    #Update dictionaries to merge in meta-data for new columns.
+    var_types.update(new_types)
+    var_formats.update(new_formats)
+    
+    #Remove key value pairs where the key is not in columns_to_save.
+    var_types = { column: var_types[column] for column in columns_to_save if 
+                       var_types.get(column) != None}
+    var_formats = { column: var_formats[column] for column in columns_to_save if 
+                         var_formats.get(column) != None}
+
+    missing_values = {} #{ column: {'values':np.nan} for column in columns_to_save }
+
+    with SavWriter(file_name, columns_to_save, var_types, formats = var_formats, 
+                   missingValues = missing_values) as writer:
+
+        dataframe['calendar'] = dataframe['calendar'].apply(writer.spssDateTime,args=('%Y-%m-%d',))
+        dataframe['bday'] = dataframe['bday'].apply(writer.spssDateTime, args = ('%Y-%m-%d',))
+
         for row in map(list, dataframe[columns_to_save].values):
+            print(row)
             writer.writerow(row)
 
     print('File {} created.'.format(file_name))
