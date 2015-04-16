@@ -1,4 +1,6 @@
 """This script will load the Medi-Cal Tape file and create the medsCurrentUncut.sav file."""
+
+#To determine how long it takes to run.
 import datetime
 start_time = datetime.datetime.now()
 print('Starting at: {}'.format(start_time))
@@ -23,7 +25,7 @@ df.sort(['CIN','EligibilityStatus'], inplace=True)
 df.drop_duplicates(subset='CIN', inplace=True)
 
 #Create calendar and bday columns.
-df['calendar'] = pd.to_datetime(df['eligYear']+ df['eligMonth'], format='%Y%m')
+df['calendar'] = pd.to_datetime(df['eligYear']*100 + df['eligMonth'], format='%Y%m')
 df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format='%Y%m%d')
 
 #Create HCplanText column and populate with HCPcode data.
@@ -33,7 +35,6 @@ df['language'] = df['lang']
 #Create ethnicity column and populate with codes from race.
 df['ethnicity'] = df['race']
 df['region']= df['city']
-
 
 #Fix misspelt city names.
 def fix_city_names(word, choices):

@@ -1,3 +1,5 @@
+0. Run aidcodesshort.sps
+
 1. Load data file.
 
 2. Create calendar column
@@ -20,14 +22,16 @@ MCelig to 1.  'good' is defined as having a starting character less than 5.
 7.select one record per person per month. Everybody and the months they were eligible
 (about line 1070).  This is the only section that MCelig is used in?
 
-8.Bring in aidcodes file. 
+8.Bring in aidcodes file. !!! This brings in FFP, Full, etc columns. Very important!!!!
+
 9.Drop MCelig column.
 
 10. Wide to long by month.
 
 11. If AidCode is 10,20 or 60 and the first character of EligibilityStatus < 5 SSI = 1.
 That creates a new column SSI and populates it with 1 if those conditions are met and leaves it 
-empty otherwise.  We could use MCelig here and get better data?
+empty otherwise.  We could use MCelig here (Instead of using this eligiblityStatus test and 
+get better data?
 
 12. (lines 1126-1130) If (basically MCelig but the code for that repeated instead) and fosterx
 new column Foster = 1, else new column foster is left empty.
@@ -37,13 +41,15 @@ Note, if we skip the X naming convention used to to do the wide to long by month
 do some renames.
 
 14. Create three new columns:
+
 primary_Aid_Code (width = 2)
 ELIGIBILITY_COUNTY_code (width = 2)
-
 EligStatusBogus (width = 3)
 
 15. Run insert file='I:\Janet\staging\MedsEligDoIfsFFPnewX.sps'.
 This does all sorts of very specific business rule stuff.
+Will be reimplemented easily.
+
 
 
 
