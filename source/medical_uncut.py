@@ -28,21 +28,21 @@ df.drop_duplicates(subset='CIN', inplace=True)
 df['calendar'] = pd.to_datetime(df['eligYear']*100 + df['eligMonth'], format='%Y%m')
 df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format='%Y%m%d')
 
+#Fix misspelt city names.
+def fix_city_names(word, choices):
+    #This function wraps fuzzywuzzy's extractOne, which returns a tuple, and grabs the first
+    #item of that tuple.
+    return process.extractOne(word,choices)[0]
+df['city'] = df['city'].apply(fix_city_names, args = (city_names,))
+
 #Create HCplanText column and populate with HCPcode data.
 df['HCplanText'] = df['HCPcode']
 #Create language column and populate with the codes from lang.
 df['language'] = df['lang']
 #Create ethnicity column and populate with codes from race.
 df['ethnicity'] = df['race']
+#Create region column and populate with city names.
 df['region']= df['city']
-
-#Fix misspelt city names.
-def fix_city_names(word, choices):
-    #This function wraps fuzzywuzzy's extractOne, which returns a tuple, and grabs the first
-    #item of that tuple.
-    return process.extractOne(word,choices)[0]
-
-df['city'] = df['city'].apply(fix_city_names, args = (city_names,))
 
 #Replace the numeric codes in HCplanText, ethnicity, and language with their text equivalent.
 df.replace(to_replace=translation_dictionary, inplace=True)
@@ -57,13 +57,12 @@ columns_to_save = ['CaseName', 'RespCounty', 'language', 'calendar', 'ssn', 'sex
                    'middleInitial', 'city', 'AidCode', 'OHC', 'SOCamount', 'EligibilityStatus',
                    'HCplanText', 'ResCounty', 'GOVT', 'CountyCaseCode', 'CountyAidCode', 
                    'CountyCaseID', 'MedicareStatus', 'HIC', 'CarrierCode', 
-                   'FederalContractNumber', 'PlanID', 'TypeID', 'HCPstatus', 'HCPcode', 
+                   'FederalContractNumber', 'PlanID', 'TypeID', 'HCPstatus', 'HCPcode', 'region',
                    'AidCodeSP1', 'RespCountySP1', 'EligibilityStatusSP1', 'AidCodeSP2', 
                    'RespCountySP2', 'EligibilityStatusSP2', 'AidCodeSP3', 'RespCountySP3', 
                    'EligibilityStatusSP3']
-#Took out 'region' after 'HCPcode'
 
-new_types = {'HCplanText':20, 'language':20, 'ethnicity':20, 'region':20, 'bday':0,
+new_types = {'HCplanText':20, 'language':25, 'ethnicity':20, 'region':18, 'bday':0,
              'calendar':0}
 new_formats = {'bday': 'DATE11', 'calendar':'MOYR6'}
 
@@ -72,5 +71,4 @@ mf.create_sav_file(meds_current_uncut_file, df, columns_to_save, new_types, new_
 
 finished_time = datetime.datetime.now()
 print('Finished at: {}'.format(finished_time))
-
 print('Total elapsed time: {}'.format(finished_time-start_time))

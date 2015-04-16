@@ -19,7 +19,7 @@ column_names, column_specifications, types_list, formats_list = zip(*column_info
 
 #Converters are used by dataframe.read_fwf to set the type of objects in a column.
 #Here we are creating a converter for every name in column_names that has a matching value in
-#types_list that isn't 0. 
+#types_list that isn't 0 which is all the ones that are strings.
 converters = {key: str for key, value in zip(column_names, types_list) if value}
 
 #variable_types and variable_formats are used by savReaderWriter. Create them here.
@@ -49,40 +49,23 @@ ethnicity_translation = {'A': 'Asian/PI', 'C': 'Asian/PI', '0': 'Unknown', 'H': 
                          '1': 'Caucasian', '2': 'Latino', '3': 'African American',
                          '5': 'Native American', 'Z': 'Other'}
 
-#
+#Dictionary to set blank, NaN and Transient city values.
 city_translation = {'TRANSIENT':'HOMELESS', '':'UNKNOWN', np.nan:'UNKNOWN'}
 
-"""
-string Region(a18).
-
- "ALAMEDA" :"1. North".
- "ALBANY" :"1. North".
- "BERKELEY" :"1. North".
- "OAKLAND" :"1. North".
- "EMERYVILLE" :"1. North".
- "PIEDMONT" :"1. North".         
-
- "HAYWARD" :"2. Central".         
- "SAN LEANDRO" :"2. Central".         
- "SAN LORENZO" :"2. Central".       
-"CASTRO VALLEY" :"2. Central".
-
- "PLEASANTON" :"4. East".         
- "LIVERMORE" :"4. East".         
- "SUNOL" :"4. East".         
- "DUBLIN" :"4. East". 
-      
- "UNION CITY" :"3. South".         
- "FREMONT" :"3. South".         
- "NEWARK" :"3. South".                 
-
- "UNKNOWN" :"6. Unknown".         
-"""
+#Match city names to their respective regions.
+region_translation = {'ALAMEDA' :'1. North', 'ALBANY' :'1. North', 'BERKELEY' :'1. North',
+                      'OAKLAND' :'1. North', 'EMERYVILLE' :'1. North', 'PIEDMONT' :'1. North',
+                      'HAYWARD' :'2. Central', 'SAN LEANDRO' :'2. Central', 
+                      'SAN LORENZO' :'2. Central', 'CASTRO VALLEY' :'2. Central',
+                      'PLEASANTON' :'4. East', 'LIVERMORE' :'4. East', 'SUNOL' :'4. East',     
+                      'DUBLIN' :'4. East', 'UNION CITY' :'3. South', 'FREMONT' :'3. South', 
+                      'NEWARK' :'3. South', 'UNKNOWN' :'6. Unknown'}
 
 #This dictionary of dictionaries is passed to a .replace method on the dataframe and then all 
 #replacements are done in a single pass.
 translation_dictionary = {'HCplanText':hcpcode_translation,
                           'language':language_translation,
                           'ethnicity':ethnicity_translation,
-                          'city':city_translation}
+                          'city':city_translation,
+                          'region':region_translation}
 
