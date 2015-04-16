@@ -26,22 +26,30 @@ def create_sav_file(file_name, dataframe, columns_to_save, new_types, new_format
     var_types.update(new_types)
     var_formats.update(new_formats)
     
-    #Remove key value pairs where the key is not in columns_to_save.
+    #Remove key value pairs where the key is not in columns_to_save. This must be
+    #done because SavWriter will choke if there is an item in types/formats dictionaries
+    #that is not in the list of columns to save.
     var_types = { column: var_types[column] for column in columns_to_save if 
                        var_types.get(column) != None}
     var_formats = { column: var_formats[column] for column in columns_to_save if 
                          var_formats.get(column) != None}
 
-    missing_values = {} #{ column: {'values':np.nan} for column in columns_to_save }
+    #missing_values = { column: {'values':np.nan} for column in columns_to_save }
+
+    #string_columns = []
+    #for column_name in columns_to_save:
+    #    if var_types.get(column_name) > 0:
+    #        string_columns.append(column_name)
+    #dataframe[string_columns] = dataframe[string_columns].fillna(value='',axis=1)
 
     with SavWriter(file_name, columns_to_save, var_types, formats = var_formats, 
-                   missingValues = missing_values) as writer:
+                   ioUtf8 = True) as writer:
 
+        #Convert from python datetime objects to spssDateTime.
         dataframe['calendar'] = dataframe['calendar'].apply(writer.spssDateTime,args=('%Y-%m-%d',))
         dataframe['bday'] = dataframe['bday'].apply(writer.spssDateTime, args = ('%Y-%m-%d',))
 
         for row in map(list, dataframe[columns_to_save].values):
-            print(row)
             writer.writerow(row)
 
     print('File {} created.'.format(file_name))

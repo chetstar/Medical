@@ -1,6 +1,7 @@
 """This module contains the column_names and column_specifications for the Medi-Cal Tape along
 with data dictionaries to tranlate numeric codes into English"""
 
+import numpy as np
 import json
 
 #Load a list of valid city names that will be used to set misspelled city names from the
@@ -48,9 +49,40 @@ ethnicity_translation = {'A': 'Asian/PI', 'C': 'Asian/PI', '0': 'Unknown', 'H': 
                          '1': 'Caucasian', '2': 'Latino', '3': 'African American',
                          '5': 'Native American', 'Z': 'Other'}
 
+#
+city_translation = {'TRANSIENT':'HOMELESS', '':'UNKNOWN', np.nan:'UNKNOWN'}
+
+"""
+string Region(a18).
+
+ "ALAMEDA" :"1. North".
+ "ALBANY" :"1. North".
+ "BERKELEY" :"1. North".
+ "OAKLAND" :"1. North".
+ "EMERYVILLE" :"1. North".
+ "PIEDMONT" :"1. North".         
+
+ "HAYWARD" :"2. Central".         
+ "SAN LEANDRO" :"2. Central".         
+ "SAN LORENZO" :"2. Central".       
+"CASTRO VALLEY" :"2. Central".
+
+ "PLEASANTON" :"4. East".         
+ "LIVERMORE" :"4. East".         
+ "SUNOL" :"4. East".         
+ "DUBLIN" :"4. East". 
+      
+ "UNION CITY" :"3. South".         
+ "FREMONT" :"3. South".         
+ "NEWARK" :"3. South".                 
+
+ "UNKNOWN" :"6. Unknown".         
+"""
+
 #This dictionary of dictionaries is passed to a .replace method on the dataframe and then all 
 #replacements are done in a single pass.
 translation_dictionary = {'HCplanText':hcpcode_translation,
                           'language':language_translation,
-                          'ethnicity':ethnicity_translation}
+                          'ethnicity':ethnicity_translation,
+                          'city':city_translation}
 

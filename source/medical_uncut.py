@@ -1,4 +1,7 @@
 """This script will load the Medi-Cal Tape file and create the medsCurrentUncut.sav file."""
+import datetime
+start_time = datetime.datetime.now()
+print('Starting at: {}'.format(start_time))
 
 import pandas as pd
 from fuzzywuzzy import process #For correcting misspelled city names.
@@ -29,8 +32,17 @@ df['HCplanText'] = df['HCPcode']
 df['language'] = df['lang']
 #Create ethnicity column and populate with codes from race.
 df['ethnicity'] = df['race']
+df['region']= df['city']
+
+
 #Fix misspelt city names.
-df['city'] = df['city'].apply(process.extractOne, args = (city_names,))
+def fix_city_names(word, choices):
+    #This function wraps fuzzywuzzy's extractOne, which returns a tuple, and grabs the first
+    #item of that tuple.
+    return process.extractOne(word,choices)[0]
+
+df['city'] = df['city'].apply(fix_city_names, args = (city_names,))
+
 #Replace the numeric codes in HCplanText, ethnicity, and language with their text equivalent.
 df.replace(to_replace=translation_dictionary, inplace=True)
 
@@ -57,3 +69,7 @@ new_formats = {'bday': 'DATE11', 'calendar':'MOYR6'}
 #Create an SPSS .sav file with the columns named in columns_to_save.
 mf.create_sav_file(meds_current_uncut_file, df, columns_to_save, new_types, new_formats)
 
+finished_time = datetime.datetime.now()
+print('Finished at: {}'.format(finished_time))
+
+print('Total elapsed time: {}'.format(finished_time-start_time))
