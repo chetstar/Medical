@@ -1,6 +1,7 @@
-0. Run aidcodesshort.sps
+0. Run aidcodesshort.sps - This takes the aidcode.sav file and drop a bunch of rows and then saves
+the result as aidcodesshort which is brought in at step 8.
 
-1. Load data file.
+1. Load  medical data file.
 
 2. Create calendar column
 
@@ -36,7 +37,8 @@ get better data?
 12. (lines 1126-1130) If (basically MCelig but the code for that repeated instead) and fosterx
 new column Foster = 1, else new column foster is left empty.
 
-13. (lines 1131-1134) Same as above but with disabledx instead of fosterx.  
+13. (lines 1131-1134) Same as above but with disabledx instead of fosterx.  Also the digit here
+only has to be less than 9 instead of less than 5.
 Note, if we skip the X naming convention used to to do the wide to long by month we'll need to
 do some renames.
 
@@ -48,8 +50,23 @@ EligStatusBogus (width = 3)
 
 15. Run insert file='I:\Janet\staging\MedsEligDoIfsFFPnewX.sps'.
 This does all sorts of very specific business rule stuff.
-Will be reimplemented easily.
 
+16. RetroMC.  Set if a past month has a valid eligibilityStatus.  Need to talk to chet/Janet about
+this.  RetroMC is not in chets work.
+
+17. If eligibilityStatus ==5, SOCmc = 1
+
+18. Create new columns:
+CCSaidCode (width = 2 )
+IHSSaidCode (width = 2 )
+
+19. If aidcode in ("9K","9M","9N","9R","9U","9V","9W") the ccsaidcode = aidcode
+
+20. if aidcode in ("2L","2M","2N") then ihssaidcode = aidcode
+
+21. Something to do with medsmonth.
+
+22. save ExplodeCurrentNoDupeAidCode.sav
 
 
 

@@ -521,7 +521,6 @@ exe.
 
 COMPUTE calendar  = date.MOYR(eligMonth, eligYear).
 
-
 DEFINE !savefile (fn=!TOKENS(1))
 agg outfile=
 !quote(!concat('I:\temp\MedsCaseCodesStaging',!fn,'.sav'))
@@ -529,7 +528,6 @@ agg outfile=
 /MedsMonth = max(Calendar).
 !enddefine.
 !savefile fn=@ThisMonthsMedsFile.
-
 
  * agg outfile='I:\Temp\MedsCaseCodesStaging.sav' 
 /break=cin GOVT EWcode CountyCaseCode  CountyCaseID 
@@ -1038,7 +1036,6 @@ LOOP #cnt=1 to 16.
 -   COMPUTE EligibilityStatusSP3=EligibilityStatusSP3_15.  
 - END IF.
 
-
 FORMATS Calendar(MOYR6).
 
 - xsave OUTFILE='I:\temp\MedsEligExplodeX.sav'
@@ -1148,9 +1145,10 @@ if Number(substr(EligibilityStatus,1,1),f1) = 5  OR
  Number(substr(EligibilityStatusSP2,1,1),f1) = 5  OR
  Number(substr(EligibilityStatusSP3,1,1),f1) = 5 SOCmc=1.
 
-
 *6/14 ccs code always in position1 - safety structure below.
+
 string CCSaidCode(a2).
+
 do if Any(AidCodeSP2,"9K","9M","9N","9R","9U","9V","9W").
 compute   CCSAidCode  =  AidCodeSP2.
 Else if Any(AidCodeSP1,"9K","9M","9N","9R","9U","9V","9W").

@@ -163,25 +163,46 @@ def create_medical_rank(s):
     return s
 
 def wide_to_long_by_month(df):
-    
+
+    #Drop all the 'v' columns.
+    cols = [c for c in df.columns if c[0].lower() == 'v']
+    df.drop(cols,axis=1,inplace=True)
+
+    #Prepend x to AidCode, RespCount, and EligibilityStatus columns that do not have 'SP' in them.
+    #Also remove all underscores in column names.
+    #This step can not be skipped, wide_to_long will fail if it is.
+    column_rename_dictionary = {}
+    for c in df.columns:
+        if ('AidCode' in c or 'RespCounty' in c or 'EligibilityStatus' in c) and 'SP' not in c:
+            column_rename_dictionary.update({c:"x"+c})
+        if '_' in c:
+            b =unicode( str(c).translate(None,'_'))
+            column_rename_dictionary.update({c:b})
+
+    df.rename(columns=column_rename_dictionary, inplace=True)
+
+
+
+    #print(column_rename_dictionary)
+
     df['id']=df.index
     stubs = ['eligYear', 
              'eligMonth',
-             'AidCode',
-             'RespCounty', 
+             'xAidCode',
+             'xRespCounty', 
              'ResCounty',
-             'EligibilityStatus',
+             'xEligibilityStatus',
              'SOCamount',
              'MedicareStatus', 
              'CarrierCode',
              'FederalContractNumber', 
              'PlanID',
              'TypeID',
-             'v16',
+             #'v16',
              'HCPstatus',
              'HCPcode',
              'OHC',
-             'v70',
+             #'v70',
              'AidCodeSP1', 
              'RespCountySP1',
              'EligibilityStatusSP1',
