@@ -2,12 +2,13 @@ import os
 from datetime import datetime
 import numpy as np
 import pandas as pd
-from column_info import translation_dictionary, column_names, column_specifications
+from medical_meta import translation_dictionary, column_names, column_specifications
+import config
 #from sqlalchemy import create_engine
 #import psycopg2
 
 MedsFolder='/media/decisionsupport/meinzer/pullmedstest/'
-medical_tape = ''
+medical_tape = config.medical_file
 csstext_file = '../legacy/CCStext.csv'
 aidcodes_file = '../legacy/AidCodesShort.csv'
 
@@ -28,12 +29,6 @@ df = pd.read_fwf(medical_tape,
 
 #This creates a column named "id" that contains a unique integer for each row.
 df["id"] = df.index
-
-#Rename several of the dataframes columns inplace to remove some extraneous exes.
-#Note this only renames the xAidCode etc. for the first month. The rest of the months still have
-#xAidCode1 to #xAidCode15. This was originally done after the wide to long to get all months?
-df.rename(columns={'xAidCode':'AidCode','xRespCounty':'RespCounty', 
-                   'xEligibilityStatus':'EligibilityStatus'}, inplace=True)
 
 #If there are duplicate CINs in the data at this point, which there shouldn't be because the 
 #data is still wide at this point, keep the row with the best EligibilityStatus for the current
@@ -59,8 +54,8 @@ df.ix[df.HCPstatus.isin(["00","10","09","19","40","49","S0","S9"]),'HCplanText']
 
 #Reshape the data.  It is still wide here though with respect to multiple aidcodes etc.
 #Its being elongated by months.
-df=pd.wide_to_long(df,[ 'eligYear', 'eligMonth','xAidCode','xRespCounty', 'ResCounty',
-                        'xEligibilityStatus','SOCamount','MedicareStatus', 'CarrierCode',
+df=pd.wide_to_long(df,[ 'eligYear', 'eligMonth','AidCode','RespCounty', 'ResCounty',
+                        'EligibilityStatus','SOCamount','MedicareStatus', 'CarrierCode',
                         'FederalContractNumber', 'PlanID', 'TypeID', 'v16','HCPstatus','HCPcode',
                         'OHC','v70','AidCodeSP1', 'RespCountySP1','EligibilityStatusSP1', 
                         'AidCodeSP2', 'RespCountySP2','EligibilityStatusSP2', 'SOCpctSP', 
@@ -161,88 +156,11 @@ g['mcRank']=None
 g['ELIGIBILITY_COUNTY_code']=None
 
 
-def f(row):
-    if (row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 and (row.Full==1) and (row.FFP==100)):
-        row[['eligibility_year', 'eligibility_month','primary_Aid_code','mcRank','ELIGIBILITY_COUNTY_code']] = row['eligYear'],row['eligMonth'],row['aidcode'],1,row['RespCounty']
-#fix this at some point!
-return row
-
-
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.Full==1) & (row.FFP==65):
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.Full==1) & (row.FFP==50):
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 & (row.Full==1) & (row.FFP==100):
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 & (row.Full==1) & (row.FFP==65):
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5  & (row.Full==1) & (row.FFP==50):
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1  & (row.FFP==100):
-
-"""
-do if Number(substr(EligibilityStatus,1,1),f1) lt 5  AND RespCounty = "01" AND FFP=100 .
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.FFP==65):
-do if Number(substr(EligibilityStatus,1,1),f1) lt 5  AND RespCounty = "01"  AND FFP=65.
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.FFP==50):
-do if Number(substr(EligibilityStatus,1,1),f1) lt 5  AND RespCounty = "01" AND FFP=50 .
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.FFP==100):
-do if Number(substr(EligibilityStatus,1,1),f1) lt 5   AND FFP=100.
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5  & (row.FFP==65):
-do if Number(substr(EligibilityStatus,1,1),f1) lt 5   AND FFP=65.
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 & (row.FFP==50):
-do if  Number(substr(EligibilityStatus,1,1),f1) lt 5   AND FFP=50.
-    if row['EligibilityStatus'] is not None and int(str(row['EligibilityStatus'])[0]) < 5 and row['RespCounty']==1 & (row.Full==1) & (~row.FFP==0):
-do if Number(substr(EligibilityStatus,1,1),f1) lt 5 AND AidCode ne " " AND  FFP ne 0  .
-"""
-
 g=g.apply(f,axis=1)
 g.loc[((g.EligibilityStatus.dropna().astype(str).str[0].astype(int) < 5)) & (g.RespCounty==1) & (g.Full==1) & (g.FFP==100),['eligibility_month',
 'primary_Aid_code','slot','mcRank','ELIGIBILITY_COUNTY_code']]=g['eligYear'],1,1,1,1,1
 
 g.sort(['CIN','calendar']).to_csv('dupes')
-
-df.ix[df.HCPstatus.isin(["00","10","09","19","40","49","S0","S9"]),'HCplanText']="z No Plan"
-df.ix[df.race.isin(["4","7","A","C","H","J","K","M","N","P","R","T","V"]),'ethnicity']="Asian/PI"
-df.ix[df.race.isin(["8","9",np.nan,"0"]),'ethnicity']="Unknown"
-
-df['ethnicity']=df['ethnicity'].replace("1","Caucasian")
-df['ethnicity']=df['ethnicity'].replace("2","Latino")
-df['ethnicity']=df['ethnicity'].replace("3","African American")
-df['ethnicity']=df['ethnicity'].replace("5","Native American")
-df['ethnicity']=df['ethnicity'].replace("Z","Other")
-
-df.city=df.city.str.upper()
-df.city=df['city'].map(lambda x: x.lstrip(' '))
-
-#Why this and the other method.  Also, why use the ix?
-df.ix[df.city.str[0:10].str.contains('SAN LORENZ'),'city']='SAN LORENZO'
-df.ix[df.city.str[0:10].str.contains('PLEASANTON'),'city']='PLEASANTON'
-df.ix[df.city.str[0:3].str.contains('UNK'),'city']='UNKNOWN'
-df.ix[df.city.str[0:4].str.contains('OAKA'),'city']='OAKLAND'
-df.ix[df.city.str[0:4].str.contains('HAYW'),'city']='HAYWARD'
-df.ix[df.city.str[0:4].str.contains('BERK'),'city']='BERKELEY'
-df.ix[df.city.str[0:5].str.contains('CASTO'),'city']='CASTRO VALLEY'
-df.ix[df.city.str[0:5].str.contains('SUNOL'),'city']='SUNOL'
-df.ix[df.city.str[0:5].str.contains('ALAME'),'city']='ALAMEDA'
-df.ix[df.city.str[0:5].str.contains('OAKLA'),'city']='OAKLAND'
-df.ix[df.city.str[0:5].str.contains('UNION'),'city']='UNION CITY'
-df.ix[df.city.str[0:5].str.contains('FREMO'),'city']='FREMONT'
-df.ix[df.city.str[0:6].str.contains('NEWARK'),'city']='NEWARK'
-df.ix[df.city.str[0:6].str.contains('DUBLIN'),'city']='DUBLIN'
-df.ix[df.city.str[0:6].str.contains('SAN LE'),'city']='SAN LEANDRO'
-df.ix[df.city.str[0:6].str.contains('FREMON'),'city']='FREMONT'
-df.ix[df.city.str[0:6].str.contains('ALBANY'),'city']='ALBANY'
-df.ix[df.city.str[0:7].str.contains('EMEMRY'),'city']='EMERYVILLE'
-df.ix[df.city.str[0:7].str.contains('ALAMEDA'),'city']='ALAMEDA'
-df.ix[df.city.str[0:7].str.contains('FRMEONT'),'city']='FREMONT'
-df.ix[df.city.str[0:7].str.contains('LIVERMO'),'city']='LIVERMORE'
-df.ix[df.city.str[0:8].str.contains('EMERYVIL'),'city']='EMERYVILLE'
-df.ix[df.city.str[0:8].str.contains('FFREMONT'),'city']='FREMONT'
-df.ix[df.city.str[0:8].str.contains('CASTRO V'),'city']='CASTRO VALLEY'
-df.ix[df.city.str[4:10].str.contains('LEANDR'),'city']='SAN LEANDRO'
-
-df['OUTCTY']=1
-df.ix[df.city.isin(['OAKLAND','SAN LEANDRO','ALAMEDA','HAYWARD','DUBLIN','LIVERMORE',
-                    'SAN LORENZO','FREMONT','PLEASANTON','EMERYVILLE','PIEDMONT','ALBANY',
-                    'BERKELEY','UNION CITY','CASTRO VALLEY','NEWARK','HAYWARD','SUNOL',
-                    'UNKNOWN','HOMELESS']),'OUTCTY']=0
-
 df.ix[df.OUTCTY==1,'Region']='5. Out of County'
 df.ix[df.street.str[0:9].str.contains('TRANSIENT') | df.street.str[0:8].str.contains('HOMELESS') | df.street.str[0:5].str.contains('NOMAD'),'homeless']=1
 df.ix[df.city.str[0:10].str.contains('TRANSIENT') | df.city.str[0:7].str.contains('HOMELESS') | df.city.str[0:4].str.contains('NOMAD'),'homeless']=1
@@ -250,15 +168,6 @@ df.ix[(df.city.isin(["UNKNOWN"]) | df.city.isnull()) & df.street.isin(["TRANSIEN
 df.ix[(df.city.isin(["UNKNOWN"]) | df.city.isnull()) & (df.street.str[0:4].str.contains('TRAN')|df.street.str[0:4].str.contains('TRAS')| \
 df.street.str[0:4].str.contains('HOM')|df.street.str.contains("(HOMELESS)|")|df.city.str.contains("HOMELESSS") ),["city","homeless"]]="HOMELESS",1
 df.ix[df.city.str.contains('HOMELESS'),'Region']="6. Unknown"
-
-engine = create_engine('postgresql://postgres:3Machine@bhcsweb3/postgres')
-if AppendDB==1:
-    DBAction='replace'
-    print DBAction
-else:
-    DBAction='append'
-    print DBAction
-df.to_sql("test_pull_meds", engine,if_exists=DBAction)
 
 ccstext = pd.read_csv('/media/decisionsupport/meinzer/Production/Medical spss files/CCStext.csv',
                       header=0)
