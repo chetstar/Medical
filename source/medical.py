@@ -75,6 +75,7 @@ df=df.reset_index()
 #return to previous df.
 
 #For each instance of eligibilityStatus create a series of the first digit of elgigbilityStatus.
+#The index for these matches that of df but with numbers missing for the dropped rows.
 w = df.EligibilityStatusSP3.dropna().astype(str).str[0].astype(int)
 v = df.EligibilityStatusSP2.dropna().astype(str).str[0].astype(int)
 u = df.EligibilityStatusSP1.dropna().astype(str).str[0].astype(int)
@@ -91,6 +92,7 @@ x=df.sort(['CIN','calendar',"MCelig"]).groupby(["CIN",'calendar'], as_index=Fals
 x["xid"] = x.index
 
 #Make data shape even longer. AidCode, RespCounty and EligibilityStatus are now their own rows.
+#Wide to long by aidcode
 y=pd.wide_to_long(x,[ 'AidCode','RespCounty','EligibilityStatus'],i='xid',j='xvarstocases')
 y=y.reset_index()
 

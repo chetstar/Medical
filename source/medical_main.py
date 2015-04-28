@@ -18,4 +18,14 @@ medical_functions.create_meds_current_uncut(df)
 #Change the shape of the dataframe.  Make it longer by making each month its own row.
 df = medical_functions.wide_to_long_by_month(df)
 
+df = df.apply(medical_functions.create_mcelig, axis = 1)
 
+df = medical_functions.drop_ineligible_months(df)
+
+#Change the shape of the dataframe.  Make it longer by taking each set of four (aidcode,status,
+#respcounty) and breaking them into their own row.
+df = medical_functions.wide_to_long_by_aidcode(df)
+
+
+df['FFP'] = df['FFP'].astype(int)
+df = df.apply(medical_functions.create_medical_rank, axis = 1)

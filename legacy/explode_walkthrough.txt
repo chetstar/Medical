@@ -1,13 +1,13 @@
-0. Run aidcodesshort.sps - This takes the aidcode.sav file and drop a bunch of rows and then saves
+^0. Run aidcodesshort.sps - This takes the aidcode.sav file and drop a bunch of rows and then saves
 the result as aidcodesshort which is brought in at step 8.
 
-1. Load  medical data file.
+*1. Load  medical data file.
 
-2. Create calendar column
+*2. Create calendar column
 
-3. Wide to long by month
+*3. Wide to long by month
 
-4. Save 'I:\temp\MedsEligExplodeX.sav' with columns:
+^4. Save 'I:\temp\MedsEligExplodeX.sav' with columns:
 
 [CIN, Calendar, EligibilityStatus, AidCode, RespCounty, SOCamount, MedicareStatus, HCPStatus, 
 HCPCode, OHC, AidCodeSP1, RespCountySP1, EligibilityStatusSP1,  aidCodeSP2,  RespCountySP2, 
@@ -15,19 +15,19 @@ EligibilityStatusSP2, AidCodeSP3, RespCountySP3, EligibilityStatusSP3]
 
 This file is probably not needed. Also, is it actually saved once per loop?
 
-5. Set HCplanText.
+*5. Set HCplanText.
 
-6. Create MCelig Column and if any of the EligibilityStatus columns for that row are good, set 
+*6. Create MCelig Column and if any of the EligibilityStatus columns for that row are good, set 
 MCelig to 1.  'good' is defined as having a starting character less than 5.
 
-7.select one record per person per month. Everybody and the months they were eligible
+*7.select one record per person per month. Everybody and the months they were eligible
 (about line 1070).  This is the only section that MCelig is used in?
 
-8.Bring in aidcodes file. !!! This brings in FFP, Full, etc columns. Very important!!!!
+*8.Bring in aidcodes file. !!! This brings in FFP, Full, etc columns. Very important!!!!
 
-9.Drop MCelig column.
+?9.Drop MCelig column.
 
-10. Wide to long by month.
+*10. Wide to long by aid code.
 
 11. If AidCode is 10,20 or 60 and the first character of EligibilityStatus < 5 SSI = 1.
 That creates a new column SSI and populates it with 1 if those conditions are met and leaves it 
@@ -48,8 +48,8 @@ primary_Aid_Code (width = 2)
 ELIGIBILITY_COUNTY_code (width = 2)
 EligStatusBogus (width = 3)
 
-15. Run insert file='I:\Janet\staging\MedsEligDoIfsFFPnewX.sps'.
-This does all sorts of very specific business rule stuff.
+*15. Run insert file='I:\Janet\staging\MedsEligDoIfsFFPnewX.sps'.
+This does all sorts of very specific business rule stuff. ^^^^Sets MCrank^^^^
 
 16. RetroMC.  Set if a past month has a valid eligibilityStatus.  Need to talk to chet/Janet about
 this.  RetroMC is not in chets work.
