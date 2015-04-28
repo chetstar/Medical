@@ -18,8 +18,10 @@ medical_functions.create_meds_current_uncut(df)
 #Change the shape of the dataframe.  Make it longer by making each month its own row.
 df = medical_functions.wide_to_long_by_month(df)
 
+#Create a single column, MCelig, with a boolean eligibility status.
 df = df.apply(medical_functions.create_mcelig, axis = 1)
 
+#Drop months where there is no eligibility.
 df = medical_functions.drop_ineligible_months(df)
 
 #Change the shape of the dataframe.  Make it longer by taking each set of four (aidcode,status,
@@ -27,5 +29,6 @@ df = medical_functions.drop_ineligible_months(df)
 df = medical_functions.wide_to_long_by_aidcode(df)
 
 
-df['FFP'] = df['FFP'].astype(int)
-df = df.apply(medical_functions.create_medical_rank, axis = 1)
+df = medical_functions.create_medical_rank(df)
+
+df = medical_functions.create_special_statuses(df)

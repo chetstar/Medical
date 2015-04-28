@@ -214,9 +214,9 @@ def wide_to_long_by_aidcode(df):
 
     return df
 
-def create_medical_rank(row):
+def rank(row):
     """This function creates and populates a rank column depending on the eligibilityStatus, 
-    RespCounty, full and ffp columns of the Medi-Cal data."""
+    RespCounty, Full and FFP columns of the Medi-Cal data."""
 
     def is_eligible():
         if str(row['EligibilityStatus']) == 'nan':
@@ -225,7 +225,7 @@ def create_medical_rank(row):
             return True
 
     def is_local():
-        if row['RespCounty'] == config.local_county_code:
+        if (row['RespCounty'] == config.local_county_code):
             return True
 
     def is_covered():
@@ -256,13 +256,21 @@ def create_medical_rank(row):
 
     return row
 
-def create_mcelig(row):
+def create_medical_rank(df):
+    """Format data as needed and apply the rank function to the dataframe."""
+    df['FFP'] = df['FFP'].astype(int)
+    df = df.apply(rank, axis = 1)
+    return df
 
-    def is_eligible(column):
-        if str(column) == 'nan':
-            return False
-        elif int(str(column)[0]) < 5:
-            return True
+def is_eligible(column, digit = 5):
+    if str(column) == 'nan':
+        return False
+    elif int(str(column)[0]) < digit:
+        return True
+
+def create_mcelig(row):
+    """Determine eligibility for the month by looking at all four EligibilityStatus columns.
+    Create an MCelig column with that data in it."""
 
     if (is_eligible(row['EligibilityStatus']) or is_eligible(row['EligibilityStatusSP1']) or 
         is_eligible(row['EligibilityStatusSP2']) or is_eligible(row['EligibilityStatusSP3'])):
@@ -276,3 +284,22 @@ def drop_ineligible_months(df):
     df = df.sort(['CIN','calendar','MCelig']).groupby(['CIN','calendar'], as_index=False).last()
     #df["id"] = df.index
     return df
+
+def create_special_statuses(df):
+    """Create columns for SSI, disabled and foster statuses."""
+    #If AidCode is 10,20 or 60 and MCelig is 1, SSI is one.
+    df.loc[df.AidCode.isin(["10","20","60"]) & (df.MCelig == 1),'SSI']=1
+
+    def foster_or_disabled(row):
+
+        if is_eligible(row['EligibilityStatus']) and row['Foster'] == 1:
+            row['Fosterx'] = 1
+        elif is_eligible(row['EligibilityStatus'], digit = 9) and row['Disabled'] == 1:
+            row['Disabledx'] = 1
+
+        return row
+
+    df = df.apply(foster_or_disabled, axis = 1)
+
+    return df
+

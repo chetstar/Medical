@@ -29,15 +29,14 @@ MCelig to 1.  'good' is defined as having a starting character less than 5.
 
 *10. Wide to long by aid code.
 
-11. If AidCode is 10,20 or 60 and the first character of EligibilityStatus < 5 SSI = 1.
+*11. If AidCode is 10,20 or 60 and the first character of EligibilityStatus < 5 SSI = 1.
 That creates a new column SSI and populates it with 1 if those conditions are met and leaves it 
-empty otherwise.  We could use MCelig here (Instead of using this eligiblityStatus test and 
-get better data?
+empty otherwise.
 
-12. (lines 1126-1130) If (basically MCelig but the code for that repeated instead) and fosterx
+*12. (lines 1126-1130) If (basically MCelig but the code for that repeated instead) and fosterx
 new column Foster = 1, else new column foster is left empty.
 
-13. (lines 1131-1134) Same as above but with disabledx instead of fosterx.  Also the digit here
+*13. (lines 1131-1134) Same as above but with disabledx instead of fosterx.  Also the digit here
 only has to be less than 9 instead of less than 5.
 Note, if we skip the X naming convention used to to do the wide to long by month we'll need to
 do some renames.
