@@ -20,6 +20,9 @@ def load_medical_data(file_location):
                      names = column_names, 
                      keep_date_col = True,
                      converters = converters)
+
+    #if df.ix[:-1]['ssn'] == 'C
+    #Code to delete the last row if its a summary row.
     return df
 
 def create_sav_file(file_name, dataframe, columns_to_save, new_types, new_formats):
@@ -193,6 +196,7 @@ def wide_to_long_by_month(df):
     df.drop(['calendar', 'varstocases'], axis=1, inplace=True)
     
     #Drop rows that are missing an eligYear or eligMonth.
+    ##Investigate missing data and ways to fill it in.
     df = df.dropna(subset=['eligYear','eligMonth'])
     df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
     df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
@@ -214,7 +218,7 @@ def wide_to_long_by_aidcode(df):
 
     return df
 
-def rank(row):
+def narrow_rank(row):
     """This function creates and populates a rank column depending on the eligibilityStatus, 
     RespCounty, Full and FFP columns of the Medi-Cal data."""
 
@@ -256,11 +260,85 @@ def rank(row):
 
     return row
 
-def create_medical_rank(df):
+def create_medical_rank_from_narrow_data(df):
     """Format data as needed and apply the rank function to the dataframe."""
     df['FFP'] = df['FFP'].astype(int)
     df = df.apply(rank, axis = 1)
     return df
+
+def wide_rank(row):
+    """This function returns a numerical rank depending on the eligibilityStatus, 
+    RespCounty, Full and FFP columns of the Medi-Cal data.
+
+    This function expects the Medi-Cal data to have NOT undergone wide_to_long_by_aidcode."""
+
+    def is_eligible():
+        if str(row[0]) == 'nan':
+            return False
+        elif int(str(row[0])[0]) < 5:
+            return True
+
+    def is_local():
+        if (row[1] == config.local_county_code):
+            return True
+
+    def is_covered():
+        if row[2] == '1':
+            return True
+
+    def ffp_ge_than(percentage):
+        if row[3] >= percentage:
+            return True
+
+    if   is_eligible() and is_local() and is_covered() and ffp_ge_than(100): return 1
+    elif is_eligible() and is_local() and is_covered() and ffp_ge_than(65 ): return 2
+    elif is_eligible() and is_local() and is_covered() and ffp_ge_than(50 ): return 3
+
+    elif is_eligible() and is_covered() and ffp_ge_than(100): return 4
+    elif is_eligible() and is_covered() and ffp_ge_than(65 ): return 5
+    elif is_eligible() and is_covered() and ffp_ge_than(50 ): return 6
+
+    elif is_eligible() and is_local() and ffp_ge_than(100): return 7
+    elif is_eligible() and is_local() and ffp_ge_than(65 ): return 8
+    elif is_eligible() and is_local() and ffp_ge_than(50 ): return 9
+
+    elif is_eligible() and ffp_ge_than(100): return 10
+    elif is_eligible() and ffp_ge_than(65 ): return 11
+    elif is_eligible() and ffp_ge_than(50 ): return 12
+
+    elif is_eligible() and AidCode and ffp_ge_than(1): return 13
+    
+    else: return 99
+
+def create_medical_rank_from_wide_data(row):
+    """Create mcrank, Primary_Aid_Code, and ELIGIBILITY_COUNTY_code columns from Medi-Cal data
+    that has not undergone wide_to_long_by_aidcode."""
+
+    ranking_data=[[row['EligibilityStatus'],row['RespCounty'],
+                   row['Full'],row['FFP'],row['AidCode']],
+                  [row['EligibilityStatusSP1'],row['RespCountySP1'],
+                   row['FullSP1'],row['FFPSP1'],row['AidCodeSP1']],
+                  [row['EligibilityStatusSP2'],row['RespCountySP2'],
+                   row['FullSP2'],row['FFPSP2'],row['AidCodeSP2']],
+                  [row['EligibilityStatusSP3'],row['RespCountySP3'],
+                   row['FullSP3'],row['FFPSP3'],row['AidCodeSP3']]]
+
+    mcrank = 99
+    Primary_Aid_Code = ''
+    ELIGIBILITY_COUNTY_code = ''
+
+    for sub_list in ranking_data:
+        current_rank = wide_rank(sub_list)
+        if current_rank < mcrank:
+            mcrank = current_rank
+            Primary_Aid_Code = sub_list[4]
+            ELIGIBILITY_COUNTY_code = sub_list[1]
+    
+    row['mcrank'] = mcrank
+    row['Primary_Aid_Code'] = Primary_Aid_Code
+    row['ELIGIBILITY_COUNTY_code'] = ELIGIBILITY_COUNTY_code
+        
+    return row
 
 def is_eligible(column, digit = 5):
     if str(column) == 'nan':
@@ -285,10 +363,20 @@ def drop_ineligible_months(df):
     #df["id"] = df.index
     return df
 
+def create_ssi_column()
+
 def create_special_statuses(df):
     """Create columns for SSI, disabled and foster statuses."""
-    #If AidCode is 10,20 or 60 and MCelig is 1, SSI is one.
-    df.loc[df.AidCode.isin(["10","20","60"]) & (df.MCelig == 1),'SSI']=1
+
+
+    #If AidCode is 10,20 or 60 and MCelig is 1, set new column SSI is one.
+    df.ix[df.AidCode.isin(['10','20','60']) & (df.MCelig == 1),'SSI']=1
+
+    #If AidCode is in this list, set new column CCSaidCode to the value of AidCode.
+    df.ix[df.AidCode.isin(['9K','9M','9N','9R','9U','9V','9W']), 'CCSaidCode']=df['AidCode']
+
+    #If AidCode is 2L,2M or 2N, set new column IHSSaidCode to the value of AidCode.
+    df.ix[df.AidCode.isin(['2L','2M','2N']), 'IHSSaidCode'] = df['AidCode']
 
     def foster_or_disabled(row):
 

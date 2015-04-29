@@ -63,7 +63,7 @@ IHSSaidCode (width = 2 )
 
 20. if aidcode in ("2L","2M","2N") then ihssaidcode = aidcode
 
-21. Something to do with medsmonth.
+21. Format medsmonth as MOYR6.
 
 22. save ExplodeCurrentNoDupeAidCode.sav
 
