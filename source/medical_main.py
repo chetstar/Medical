@@ -16,7 +16,7 @@ df = medical_functions.add_supplementary_columns(df)
 medical_functions.create_meds_current_uncut(df)
 
 #Change the shape of the dataframe.  Make it longer by making each month its own row.
-#df = medical_functions.wide_to_long_by_month(df)
+df = medical_functions.wide_to_long_by_month(df)
 
 #Create a single column, MCelig, with a boolean eligibility status.
 df = df.apply(medical_functions.create_mcelig, axis = 1)
@@ -29,8 +29,8 @@ df = medical_functions.drop_ineligible_months(df)
 #df = medical_functions.wide_to_long_by_aidcode(df)
 
 #Creates a Medi-Cal rank based on EligibilityStatus, RespCounty, Full and FFP columns.
-df = medical_functions.create_medical_rank_from_wide_data(df)
+df = df.apply(medical_functions.create_medical_rank_from_wide_data, axis = 1)
 
 #Create SSI, Fosterx and Disabledx Columns.
-df = medical_functions.create_special_statuses(df)
+df = medical_functions.create_statuses(df)
 

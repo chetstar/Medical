@@ -21,8 +21,8 @@ def load_medical_data(file_location):
                      keep_date_col = True,
                      converters = converters)
 
-    #if df.ix[:-1]['ssn'] == 'C
     #Code to delete the last row if its a summary row.
+    #df = df.ix[:-1]
     return df
 
 def create_sav_file(file_name, dataframe, columns_to_save, new_types, new_formats):
@@ -102,13 +102,18 @@ def add_supplementary_columns(df):
     df.ix[df.HCPstatus.isin(["00","10","09","19","40","49","S0","S9"]),'HCplanText']="z No Plan"
     
     #Bring in text form of aid codes.
-    ccstext = pd.read_csv(config.csstext_file,header=0)
-    aidcodesshort= pd.read_csv(config.aidcodes_file,header=0)
+    #ccstext = pd.read_csv(config.csstext_file,header=0)
+    aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
 
     #Merge in text form of aid codes.
-    df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
-    df = pd.merge(df, aidcodesshort, how='left',left_on='AidCode',right_on='aidcode')
-
+    #df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCode', right_on = 'aidcode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP1', right_on = 'aidcode',
+                  suffixes = ('','sp1'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP2', right_on = 'aidcode',
+                  suffixes = ('','sp2'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP3', right_on = 'aidcode',
+                  suffixes = ('','sp3'))
     return df
 
 def create_meds_current_uncut(df):
@@ -203,69 +208,6 @@ def wide_to_long_by_month(df):
 
     return df
 
-def wide_to_long_by_aidcode(df):
-
-    #These are the three types of columns to go wide to long on.
-    stubs = ['EligibilityStatus','RespCounty','AidCode']
-
-    df = pd.wide_to_long(df,stubs, i = 'id', j = 'varstocases')
-
-    #The wide to long produces a multi-level index that we don't need, flatten it.
-    df.reset_index(inplace = True)
-
-    #The wide to long creates a varstocases columns we don't need, drop it.
-    df.drop(['varstocases'], axis = 1, inplace = True)
-
-    return df
-
-def narrow_rank(row):
-    """This function creates and populates a rank column depending on the eligibilityStatus, 
-    RespCounty, Full and FFP columns of the Medi-Cal data."""
-
-    def is_eligible():
-        if str(row['EligibilityStatus']) == 'nan':
-            return False
-        elif int(str(row['EligibilityStatus'])[0]) < 5:
-            return True
-
-    def is_local():
-        if (row['RespCounty'] == config.local_county_code):
-            return True
-
-    def is_covered():
-        if row['Full'] == '1':
-            return True
-
-    def ffp_ge_than(percentage):
-        if row['FFP'] >= percentage:
-            return True
-
-    if   is_eligible() and is_local() and is_covered() and ffp_ge_than(100): row['mcrank'] = 1
-    elif is_eligible() and is_local() and is_covered() and ffp_ge_than(65 ): row['mcrank'] = 2
-    elif is_eligible() and is_local() and is_covered() and ffp_ge_than(50 ): row['mcrank'] = 3
-
-    elif is_eligible() and is_covered() and ffp_ge_than(100): row['mcrank'] = 4
-    elif is_eligible() and is_covered() and ffp_ge_than(65 ): row['mcrank'] = 5
-    elif is_eligible() and is_covered() and ffp_ge_than(50 ): row['mcrank'] = 6
-
-    elif is_eligible() and is_local() and ffp_ge_than(100): row['mcrank'] = 7
-    elif is_eligible() and is_local() and ffp_ge_than(65 ): row['mcrank'] = 8
-    elif is_eligible() and is_local() and ffp_ge_than(50 ): row['mcrank'] = 9
-
-    elif is_eligible() and ffp_ge_than(100): row['mcrank'] = 10
-    elif is_eligible() and ffp_ge_than(65 ): row['mcrank'] = 11
-    elif is_eligible() and ffp_ge_than(50 ): row['mcrank'] = 12
-
-    elif is_eligible() and AidCode and ffp_ge_than(1): row['mcrank'] = 13
-
-    return row
-
-def create_medical_rank_from_narrow_data(df):
-    """Format data as needed and apply the rank function to the dataframe."""
-    df['FFP'] = df['FFP'].astype(int)
-    df = df.apply(rank, axis = 1)
-    return df
-
 def wide_rank(row):
     """This function returns a numerical rank depending on the eligibilityStatus, 
     RespCounty, Full and FFP columns of the Medi-Cal data.
@@ -317,11 +259,11 @@ def create_medical_rank_from_wide_data(row):
     ranking_data=[[row['EligibilityStatus'],row['RespCounty'],
                    row['Full'],row['FFP'],row['AidCode']],
                   [row['EligibilityStatusSP1'],row['RespCountySP1'],
-                   row['FullSP1'],row['FFPSP1'],row['AidCodeSP1']],
+                   row['Fullsp1'],row['FFPsp1'],row['AidCodeSP1']],
                   [row['EligibilityStatusSP2'],row['RespCountySP2'],
-                   row['FullSP2'],row['FFPSP2'],row['AidCodeSP2']],
+                   row['Fullsp2'],row['FFPsp2'],row['AidCodeSP2']],
                   [row['EligibilityStatusSP3'],row['RespCountySP3'],
-                   row['FullSP3'],row['FFPSP3'],row['AidCodeSP3']]]
+                   row['Fullsp3'],row['FFPsp3'],row['AidCodeSP3']]]
 
     mcrank = 99
     Primary_Aid_Code = ''
@@ -340,10 +282,10 @@ def create_medical_rank_from_wide_data(row):
         
     return row
 
-def is_eligible(column, digit = 5):
+def is_eligible(column, value = 5):
     if str(column) == 'nan':
         return False
-    elif int(str(column)[0]) < digit:
+    elif int(str(column)[0]) < value:
         return True
 
 def create_mcelig(row):
@@ -363,31 +305,81 @@ def drop_ineligible_months(df):
     #df["id"] = df.index
     return df
 
-def create_ssi_column()
+def set_status(row):
+    """Create SSI column and set to 1 if any AidCode is 10,20, or 60 and MCelig is true"""
+    
+    #Condense aidcode columns into a list.
+    aidcodes = [row['AidCode'], row['AidCodeSP1'], row['AidCodeSP2'], row['AidCodeSP3']]
+        
+    #If any aidcode is 10,20, or 60 SSI is set to 1.
+    if any(code in aidcodes for code in ['10','20','60']):
+        row['SSI'] = 1
+    
+    #If aidcode is one of: ['9K','9M','9N','9R','9U','9V','9W'] ccsaidcode is set to that aidcode.
+    ccsaidcode = next((code in ['9K','9M','9N','9R','9U','9V','9W'] for code in aidcodes if code),
+                      None)
+    if ccsaidcode:
+        row['CCSaidCode'] = ccsaidcode
 
-def create_special_statuses(df):
-    """Create columns for SSI, disabled and foster statuses."""
+    #If aidcode is on of: ['2L','2M','2N'] ihssaidcode column is set to that aidcode.
+    ihssaidcode = next((code in aidcodes for code in ['2L','2M','2N'] if code), None)
+    if ihssaidcode:
+        row['IHSSaidCode'] = ihssaidcode
 
+    #Create and set a foster column to 1 if eligible.
+    if ( (is_eligible(row['EligibilityStatus']) and row['Foster'] == 1) or
+         (is_eligible(row['EligibilityStatusSP1']) and row['Fostersp1'] == 1) or
+         (is_eligible(row['EligibilityStatusSP2']) and row['Fostersp2'] == 1) or
+         (is_eligible(row['EligibilityStatusSP3']) and row['Fostersp3'] == 1) ):
+        row['FosterX'] = 1
 
-    #If AidCode is 10,20 or 60 and MCelig is 1, set new column SSI is one.
-    df.ix[df.AidCode.isin(['10','20','60']) & (df.MCelig == 1),'SSI']=1
+    #Create and set a disabled column to 1 if eligible.
+    if ( (is_eligible(row['EligibilityStatus'], value = 9) and row['Disabled'] == 1) or
+         (is_eligible(row['EligibilityStatusSP1'], value = 9) and row['Disabledsp1'] == 1) or
+         (is_eligible(row['EligibilityStatusSP2'], value = 9) and row['Disabledsp2'] == 1) or
+         (is_eligible(row['EligibilityStatusSP3'], value = 9) and row['Disabledsp3'] == 1) ):
+        row['DisabledX'] = 1
+    
+    #If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1. 
+    try:
+        if str(row['primary_Aid_Code'])[2] in ['2','3','5']:
+            row['RetroMC'] = 1
+    except Exception:
+        pass
 
-    #If AidCode is in this list, set new column CCSaidCode to the value of AidCode.
-    df.ix[df.AidCode.isin(['9K','9M','9N','9R','9U','9V','9W']), 'CCSaidCode']=df['AidCode']
+    #Set SOCmc to 1 if the first character of any EligibilityStatus is 5.
+    def soc_mc(column):
+        try:
+            if int(str(column)[0]) == 5:
+                return True
+        except Exception:
+            pass
+    if ( soc_mc(row['EligibilityStatus']) or soc_mc(row['EligibilityStatusSP1']) or
+         soc_mc(row['EligibilityStatusSP2']) or soc_mc(row['EligibilityStatusSP3']) ):
+        row['SOCmc'] = 1
+        
+    return row
+    
+def create_statuses(df):
+    """Create columns for SSI, Foster, Disabled, CCSaidCode, IHSSaidCode"""
 
-    #If AidCode is 2L,2M or 2N, set new column IHSSaidCode to the value of AidCode.
-    df.ix[df.AidCode.isin(['2L','2M','2N']), 'IHSSaidCode'] = df['AidCode']
+    df = df.apply(set_status, axis = 1)
 
-    def foster_or_disabled(row):
-
-        if is_eligible(row['EligibilityStatus']) and row['Foster'] == 1:
-            row['Fosterx'] = 1
-        elif is_eligible(row['EligibilityStatus'], digit = 9) and row['Disabled'] == 1:
-            row['Disabledx'] = 1
-
-        return row
-
-    df = df.apply(foster_or_disabled, axis = 1)
-
+    row[['Disabled','Foster']] = row[['DisabledX','FosterX']]
+    
     return df
 
+def create_meds_explode_sav(df):
+    #Load list of columns to save for medsExplodeNoDupeAidCodes.sav
+    with open('nodupe_columns_to_save.json') as f:
+        columns_to_save = json.load(f)
+
+    #These are types and formats of columns not originally in the Medi-Cal file.
+    new_types = {'primary_Aid_Code':2, 'ELIGIBILITY_COUNTY_code':2, 'FFP':0, 'FFPsp1':0,
+                 'FFPsp2':0, 'FFPsp3':0, 'Full':0, 'Fullsp1':0, 'Fullsp2':0, 'Fullsp3':0,
+                 'SSI':0, 'Foster':0, 'Disabled':0, 'HCplanText':20, 'language':25, 
+                 'ethnicity':20, 'region':18, 'bday':0, 'calendar':0}
+
+    new_formats = {'bday': 'DATE11', 'calendar':'MOYR6'}
+
+    create_sav_file(config.meds_current_explode_file, df, columns_to_save, new_types, new_formats)
