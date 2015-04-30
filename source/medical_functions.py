@@ -22,7 +22,7 @@ def load_medical_data(file_location):
                      converters = converters)
 
     #Code to delete the last row if its a summary row.
-    #df = df.ix[:-1]
+    df = df.drop(df.index[-1])
     return df
 
 def create_sav_file(file_name, dataframe, columns_to_save, new_types, new_formats):
@@ -296,7 +296,7 @@ def create_mcelig(row):
         is_eligible(row['EligibilityStatusSP2']) or is_eligible(row['EligibilityStatusSP3'])):
         row['MCelig'] = 1
     else:
-        row['MCelig'] = 0
+        row['MCelig'] = np.nan
 
     return row
 
