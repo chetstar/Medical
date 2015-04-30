@@ -34,3 +34,5 @@ df = df.apply(medical_functions.create_medical_rank_from_wide_data, axis = 1)
 #Create SSI, Fosterx and Disabledx Columns.
 df = medical_functions.create_statuses(df)
 
+#Save off medsExplodeNoDupeAidCode.sav.
+medical_functions.create_meds_explode(df)

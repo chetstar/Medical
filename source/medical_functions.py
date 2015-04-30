@@ -266,8 +266,8 @@ def create_medical_rank_from_wide_data(row):
                    row['Fullsp3'],row['FFPsp3'],row['AidCodeSP3']]]
 
     mcrank = 99
-    Primary_Aid_Code = ''
-    ELIGIBILITY_COUNTY_code = ''
+    Primary_Aid_Code = np.nan
+    ELIGIBILITY_COUNTY_code = np.nan
 
     for sub_list in ranking_data:
         current_rank = wide_rank(sub_list)
@@ -276,8 +276,8 @@ def create_medical_rank_from_wide_data(row):
             Primary_Aid_Code = sub_list[4]
             ELIGIBILITY_COUNTY_code = sub_list[1]
     
-    row['mcrank'] = mcrank
-    row['Primary_Aid_Code'] = Primary_Aid_Code
+    row['mcRank'] = mcrank
+    row['primary_Aid_Code'] = Primary_Aid_Code
     row['ELIGIBILITY_COUNTY_code'] = ELIGIBILITY_COUNTY_code
         
     return row
@@ -295,6 +295,8 @@ def create_mcelig(row):
     if (is_eligible(row['EligibilityStatus']) or is_eligible(row['EligibilityStatusSP1']) or 
         is_eligible(row['EligibilityStatusSP2']) or is_eligible(row['EligibilityStatusSP3'])):
         row['MCelig'] = 1
+    else:
+        row['MCelig'] = 0
 
     return row
 
@@ -314,17 +316,23 @@ def set_status(row):
     #If any aidcode is 10,20, or 60 SSI is set to 1.
     if any(code in aidcodes for code in ['10','20','60']):
         row['SSI'] = 1
-    
+    else:
+        row['SSI'] = np.nan
+
     #If aidcode is one of: ['9K','9M','9N','9R','9U','9V','9W'] ccsaidcode is set to that aidcode.
     ccsaidcode = next((code in ['9K','9M','9N','9R','9U','9V','9W'] for code in aidcodes if code),
                       None)
     if ccsaidcode:
         row['CCSaidCode'] = ccsaidcode
+    else:
+        row['CCSaidCode'] = np.nan
 
     #If aidcode is on of: ['2L','2M','2N'] ihssaidcode column is set to that aidcode.
     ihssaidcode = next((code in aidcodes for code in ['2L','2M','2N'] if code), None)
     if ihssaidcode:
         row['IHSSaidCode'] = ihssaidcode
+    else:
+        row['IHSSaidCode'] = np.nan
 
     #Create and set a foster column to 1 if eligible.
     if ( (is_eligible(row['EligibilityStatus']) and row['Foster'] == 1) or
@@ -332,6 +340,8 @@ def set_status(row):
          (is_eligible(row['EligibilityStatusSP2']) and row['Fostersp2'] == 1) or
          (is_eligible(row['EligibilityStatusSP3']) and row['Fostersp3'] == 1) ):
         row['FosterX'] = 1
+    else:
+        row['FosterX'] = np.nan
 
     #Create and set a disabled column to 1 if eligible.
     if ( (is_eligible(row['EligibilityStatus'], value = 9) and row['Disabled'] == 1) or
@@ -339,13 +349,15 @@ def set_status(row):
          (is_eligible(row['EligibilityStatusSP2'], value = 9) and row['Disabledsp2'] == 1) or
          (is_eligible(row['EligibilityStatusSP3'], value = 9) and row['Disabledsp3'] == 1) ):
         row['DisabledX'] = 1
+    else:
+        row ['DisabledX'] = np.nan
     
     #If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1. 
     try:
         if str(row['primary_Aid_Code'])[2] in ['2','3','5']:
             row['RetroMC'] = 1
     except Exception:
-        pass
+            row['RetroMC'] = np.nan
 
     #Set SOCmc to 1 if the first character of any EligibilityStatus is 5.
     def soc_mc(column):
@@ -357,7 +369,9 @@ def set_status(row):
     if ( soc_mc(row['EligibilityStatus']) or soc_mc(row['EligibilityStatusSP1']) or
          soc_mc(row['EligibilityStatusSP2']) or soc_mc(row['EligibilityStatusSP3']) ):
         row['SOCmc'] = 1
-        
+    else:
+        row['SOCmc'] = np.nan
+
     return row
     
 def create_statuses(df):
@@ -365,21 +379,33 @@ def create_statuses(df):
 
     df = df.apply(set_status, axis = 1)
 
-    row[['Disabled','Foster']] = row[['DisabledX','FosterX']]
+    df[['Disabled','Foster']] = df[['DisabledX','FosterX']]
     
     return df
 
-def create_meds_explode_sav(df):
+def create_meds_explode(df):
     #Load list of columns to save for medsExplodeNoDupeAidCodes.sav
-    with open('nodupe_columns_to_save.json') as f:
+    with open('columns_to_save.json') as f:
         columns_to_save = json.load(f)
+
+    rename_dictionary = {'AidCodeSP1':'aidCodeSP1', 'AidCodeSP2':'aidCodeSP2',
+                         'AidCodeSP3':'aidCodeSP3', 'Full':'full', 'Fullsp1':'fullsp1',
+                         'Fullsp2':'fullsp2', 'Fullsp3':'fullsp3', 'HCplanText':'HCPlanText',
+                         'eligYear':'eligibility_year', 'eligMonth': 'eligibility_month'}
+
+    df.rename(columns = rename_dictionary, inplace = True)
+
+    df['MedsMonth'] = df['calendar']
 
     #These are types and formats of columns not originally in the Medi-Cal file.
     new_types = {'primary_Aid_Code':2, 'ELIGIBILITY_COUNTY_code':2, 'FFP':0, 'FFPsp1':0,
-                 'FFPsp2':0, 'FFPsp3':0, 'Full':0, 'Fullsp1':0, 'Fullsp2':0, 'Fullsp3':0,
-                 'SSI':0, 'Foster':0, 'Disabled':0, 'HCplanText':20, 'language':25, 
-                 'ethnicity':20, 'region':18, 'bday':0, 'calendar':0}
+                 'FFPsp2':0, 'FFPsp3':0, 'full':0, 'fullsp1':0, 'fullsp2':0, 'fullsp3':0,
+                 'SSI':0, 'Foster':0, 'Disabled':0, 'HCPlanText':20, 'language':25, 
+                 'ethnicity':20, 'region':18, 'bday':0, 'calendar':0, 'aidCodeSP1':0, 
+                 'aidCodeSP2':0, 'aidCodeSP3':0, 'eligibility_year':0,
+                 'eligibility_month':0, 'mcRank':0, 'RetroMC':0, 'SOCmc':0, 'CCSaidCode':2,
+                 'IHSSaidCode':2, 'MedsMonth':0}
 
-    new_formats = {'bday': 'DATE11', 'calendar':'MOYR6'}
+    new_formats = {'bday': 'DATE11', 'calendar':'MOYR6', 'MedsMonth':'MOYR6'}
 
-    create_sav_file(config.meds_current_explode_file, df, columns_to_save, new_types, new_formats)
+    create_sav_file(config.nodupe_file, df, columns_to_save, new_types, new_formats)
