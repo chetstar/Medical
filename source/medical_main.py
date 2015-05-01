@@ -1,7 +1,12 @@
+import datetime
+
 import pandas as pd
 
 import medical_functions
 import config
+
+start_time = datetime.datetime.now()
+print('Started at: {}'.format(start_time))
 
 #Create a pandas dataframe (df) from medical_file.
 df = medical_functions.load_medical_data(config.medical_file)
@@ -14,6 +19,8 @@ df = medical_functions.add_supplementary_columns(df)
 
 #Save off medsCurrentUncut.sav file.
 medical_functions.create_meds_current_uncut(df)
+
+print('Uncut.sav finished at: {}'.format(datetime.datetime.now()))
 
 #Change the shape of the dataframe.  Make it longer by making each month its own row.
 df = medical_functions.wide_to_long_by_month(df)
@@ -36,3 +43,7 @@ df = medical_functions.create_statuses(df)
 
 #Save off medsExplodeNoDupeAidCode.sav.
 medical_functions.create_meds_explode(df)
+
+finished_time = datetime.datetime.now()
+print('Finished at: {}'.format(finished_time))
+print('Total elapsed time: {}'.format(finished_time - start_time))
