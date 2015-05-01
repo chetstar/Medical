@@ -58,10 +58,12 @@ def clean_medical_data(df):
 
     #Drop all rows without a CIN.
     df.dropna(subset=['CIN'], inplace=True)
+    print('CIN-less rows dropped at: {}'.format(datetime.datetime.now()))
 
     #Remove duplicate rows keeping the row with the best eligibilityStatus. 
     df.sort(['CIN','EligibilityStatus'], inplace=True)
     df.drop_duplicates(subset='CIN', inplace=True)
+    print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
 
     #Wrap extractOne so that we can use it with apply and get back only a city name.
     def extractOne_wrapper(city, city_name_list):
@@ -74,6 +76,7 @@ def clean_medical_data(df):
 
     #Fix mispelt city names. city_names 
     df['city'] = df['city'].apply(extractOne_wrapper, args = (city_name_list,))
+    print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
 
     return df
 
