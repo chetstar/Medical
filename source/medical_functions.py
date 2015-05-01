@@ -1,3 +1,4 @@
+import datetime
 import json
 
 import numpy as np
@@ -84,7 +85,7 @@ def add_supplementary_columns(df):
     """Add calendar, bday, HCplanText, language, ethnicity and region columns"""
 
     #Create calendar and bday columns.
-    df['calendar'] = pd.to_datetime(df['eligYear']*100 + df['eligMonth'], format='%Y%m')
+    df['calendar'] = pd.to_datetime(df['eligYear'].astype(int)*100 + df['eligMonth'].astype(int), format='%Y%m')
     df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format='%Y%m%d')
 
     #Create HCplanText column and populate with HCPcode data.
