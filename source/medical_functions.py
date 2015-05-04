@@ -38,9 +38,10 @@ def create_sav_file(file_name, dataframe, columns_to_save, new_types, new_format
     #Remove key value pairs where the key is not in columns_to_save. This must be
     #done because SavWriter will choke if there is an item in types/formats dictionaries
     #that is not in the list of columns to save.
-    var_types = { column: var_types[column] for column in columns_to_save}
+    var_types = { column: var_types[column] for column in columns_to_save if
+                  var_types.get(column) != None}
     var_formats = { column: var_formats[column] for column in columns_to_save if 
-                        var_formats.get(column) != None}
+                    var_formats.get(column) != None}
 
     with SavWriter(file_name, columns_to_save, var_types, formats = var_formats, 
                    ioUtf8 = True) as writer:
@@ -209,6 +210,75 @@ def wide_to_long_by_month(df):
     df = df.dropna(subset=['eligYear','eligMonth'])
     df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
     df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
+
+    return df
+
+def drop_unneeded_columns(df):
+
+    stubs = ['AidCode', 'RespCounty', 'EligibilityStatus', 'SOCamount', 'CIN','bday','HCplanText',
+             'MedicareStatus', 'HCPstatus', 'HCPcode', 'OHC', 'eligYear', 'eligMonth']
+
+    columns_to_keep = [col_name for col_name in df.columns for stub_name in stubs if 
+                       stub_name in col_name]
+
+    df = df[columns_to_keep]
+
+    return df
+
+def wide_to_long(df):
+
+    df = drop_unneeded_columns(df)
+
+    stubs = ['eligYear', 
+             'eligMonth',
+             'AidCode',
+             'RespCounty', 
+             'EligibilityStatus',
+             'SOCamount',
+             'MedicareStatus', 
+             'HCPstatus',
+             'HCPcode',
+             'HCplanText',
+             'OHC',
+             'AidCodeSP1', 
+             'RespCountySP1',
+             'EligibilityStatusSP1',
+             'AidCodeSP2', 
+             'RespCountySP2',
+             'EligibilityStatusSP2', 
+             'AidCodeSP3', 
+             'RespCountySP3',
+             'EligibilityStatusSP3',
+             'CIN',
+             'bday']
+
+    suffixes = ['_'+str(x) for x in range(1,16)]
+
+    df2 = df[stubs]
+    
+    for suffix in suffixes:
+        month_columns = []
+        for column in df.columns:
+            if column.endswith(suffix):
+                month_columns.append(column)
+        df2.append(df[month_columns])
+        df.drop(month_columns, inplace = True, axis = 1)
+
+    df = df2
+
+    df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
+    df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
+
+    aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
+    #Merge in text form of aid codes.
+    #df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCode', right_on = 'aidcode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP1', right_on = 'aidcode',
+                  suffixes = ('','sp1'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP2', right_on = 'aidcode',
+                  suffixes = ('','sp2'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP3', right_on = 'aidcode',
+                  suffixes = ('','sp3'))
 
     return df
 

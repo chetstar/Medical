@@ -25,7 +25,8 @@ medical_functions.create_meds_current_uncut(df)
 print('Uncut.sav finished at: {}'.format(datetime.datetime.now()))
 
 #Change the shape of the dataframe.  Make it longer by making each month its own row.
-df = medical_functions.wide_to_long_by_month(df)
+#df = medical_functions.wide_to_long_by_month(df)
+df = medical_functions.wide_to_long(df)
 print('wide_to_long_by_month finished at: {}'.format(datetime.datetime.now()))
 
 #Create a single column, MCelig, with a boolean eligibility status.
