@@ -184,26 +184,10 @@ def wide_to_long(df):
     df = drop_unneeded_columns(df)
 
     #These are the stubs, or start of, column names that need to be kept.
-    stubs = ['eligYear', 
-             'eligMonth',
-             'xAidCode',
-             'xRespCounty', 
-             'xEligibilityStatus',
-             'SOCamount',
-             'MedicareStatus', 
-             'HCPstatus',
-             'HCPcode',
-             'HCplanText',
-             'OHC',
-             'AidCodeSP1', 
-             'RespCountySP1',
-             'EligibilityStatusSP1',
-             'AidCodeSP2', 
-             'RespCountySP2',
-             'EligibilityStatusSP2', 
-             'AidCodeSP3', 
-             'RespCountySP3',
-             'EligibilityStatusSP3']
+    stubs = ['eligYear', 'eligMonth', 'xAidCode', 'xRespCounty', 'xEligibilityStatus',
+             'SOCamount', 'MedicareStatus', 'HCPstatus', 'HCPcode', 'HCplanText', 'OHC',
+             'AidCodeSP1', 'RespCountySP1', 'EligibilityStatusSP1', 'AidCodeSP2', 'RespCountySP2',
+             'EligibilityStatusSP2', 'AidCodeSP3', 'RespCountySP3', 'EligibilityStatusSP3']
 
     #These are the columns that will be kept as is.
     ids = ['CIN','bday']
@@ -233,42 +217,28 @@ def wide_to_long(df):
         month_plus_ids = month_columns[:]
         month_plus_ids.extend(ids)
 
-        #
+        #Create a temp data frame with a copy of the wanted rows from the original dataframe.
         temp_df = df[month_plus_ids]
 
+        #Create a dictionary that maps the current months column names to the column names
+        #needed to append to the new_df.
         main_to_month_mapping = {column_name:new_column_name for column_name, new_column_name in
                                  zip(month_columns,remove_month_suffix(month_columns[:],x))}
 
+        #Rename the columns of the temp_df useing the main_to_month_mapping.
         temp_df.rename(columns=main_to_month_mapping,inplace = True)
 
+        #Add the rows of temp_df to the new_df.
         new_df = new_df.append(temp_df, ignore_index = True)
+
+        #Drop the columns that are now in the new_df from the old_df.
         df = df.drop(month_columns, axis = 1)
 
     #Remove 'x' from column names where it is no longer needed.
     new_df.rename(columns={'xAidCode':'AidCode', 'xRespCounty':'RespCounty', 
                        'xEligibilityStatus':'EligibilityStatus'}, inplace = True)
 
-    #Assign our new_df to the old dataframes variable, df.
-    df = new_df
-
-
-    
-    df.dropna(subset=['eligYear','eligMonth'], inplace = True)
-    df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
-    df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
-
-    aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
-    #Merge in text form of aid codes.
-    #df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCode', right_on = 'aidcode')
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP1', right_on = 'aidcode',
-                  suffixes = ('','sp1'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP2', right_on = 'aidcode',
-                  suffixes = ('','sp2'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP3', right_on = 'aidcode',
-                  suffixes = ('','sp3'))
-
-    return df
+    return new_df
 
 def wide_rank(row):
     """This function returns a numerical rank depending on the eligibilityStatus, 
@@ -370,7 +340,6 @@ def drop_ineligible_months(df):
     return df
 
 def set_status(row):
-    """Create SSI column and set to 1 if any AidCode is 10,20, or 60 and MCelig is true"""
     
     #Condense aidcode columns into a list.
     aidcodes = [row['AidCode'], row['AidCodeSP1'], row['AidCodeSP2'], row['AidCodeSP3']]
@@ -435,6 +404,28 @@ def set_status(row):
         row['SOCmc'] = np.nan
 
     return row
+
+def cal(df):
+    #Create calendar column.
+    df.dropna(subset=['eligYear','eligMonth'], inplace = True)
+    df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
+    df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
+
+    #Bring in aidcode data from the aidcodesshort.csv.
+    aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
+
+    #Merge in text form of aid codes.
+    #df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCode', right_on = 'aidcode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP1', right_on = 'aidcode',
+                  suffixes = ('','sp1'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP2', right_on = 'aidcode',
+                  suffixes = ('','sp2'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP3', right_on = 'aidcode',
+                  suffixes = ('','sp3'))
+
+    return df
+
     
 def create_statuses(df):
     """Create columns for SSI, Foster, Disabled, CCSaidCode, IHSSaidCode"""

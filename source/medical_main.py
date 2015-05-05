@@ -29,6 +29,9 @@ print('Uncut.sav finished at: {}'.format(datetime.datetime.now()))
 df = medical_functions.wide_to_long(df)
 print('wide_to_long finished at: {}'.format(datetime.datetime.now()))
 
+df = medical_functions.cal(df)
+print('cal finished at: {}'.format(datetime.datetime.now()))
+
 #Create a single column, MCelig, with a boolean eligibility status.
 df = df.apply(medical_functions.create_mcelig, axis = 1)
 print('MCelig created at: {}'.format(datetime.datetime.now()))
