@@ -19,7 +19,6 @@ def load_medical_data(file_location):
                      colspecs = column_specifications,
                      header = None,
                      names = column_names, 
-                     keep_date_col = True,
                      converters = converters)
 
     #Code to delete the last row if its a summary row.
@@ -86,7 +85,8 @@ def add_supplementary_columns(df):
     """Add calendar, bday, HCplanText, language, ethnicity and region columns"""
 
     #Create calendar and bday columns.
-    df['calendar'] = pd.to_datetime(df['eligYear'].astype(int)*100 + df['eligMonth'].astype(int), format='%Y%m')
+    df['calendar'] = pd.to_datetime(df['eligYear'].astype(int)*100 + df['eligMonth'].astype(int),
+                                    format='%Y%m')
     df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format='%Y%m%d')
 
     #Create HCplanText column and populate with HCPcode data.
@@ -142,84 +142,29 @@ def create_meds_current_uncut(df):
 
     #Create an SPSS .sav file with the columns named in columns_to_save.
     create_sav_file(config.meds_current_uncut_file, df, columns_to_save, new_types, new_formats)
+def rename_columns(df):
 
-def wide_to_long_by_month(df):
-    """Reshape the dataframe from wider to longer by month"""
-
-    #Drop all the 'v' columns.
-    cols = [c for c in df.columns if c[0].lower() == 'v']
-    df.drop(cols,axis=1,inplace=True)
-
-    #Prepend x to AidCode, RespCount, and EligibilityStatus columns that do not have 'SP' in them.
-    #Also remove all underscores in column names.
-    #This step can not be skipped, wide_to_long will fail if it is.
-    column_rename_dictionary = {}
-    for c in df.columns:
-        if ('AidCode' in c or 'RespCounty' in c or 'EligibilityStatus' in c) and 'SP' not in c:
-            column_rename_dictionary.update({c:"x"+c})
-        if '_' in c:
-            b =unicode( str(c).translate(None,'_'))
-            column_rename_dictionary.update({c:b})
-    df.rename(columns=column_rename_dictionary, inplace=True)
-
-    df['id']=df.index
-    stubs = ['eligYear', 
-             'eligMonth',
-             'xAidCode',
-             'xRespCounty', 
-             'ResCounty',
-             'xEligibilityStatus',
-             'SOCamount',
-             'MedicareStatus', 
-             'CarrierCode',
-             'FederalContractNumber', 
-             'PlanID',
-             'TypeID',
-             'HCPstatus',
-             'HCPcode',
-             'OHC',
-             'AidCodeSP1', 
-             'RespCountySP1',
-             'EligibilityStatusSP1',
-             'AidCodeSP2', 
-             'RespCountySP2',
-             'EligibilityStatusSP2', 
-             'SOCpctSP',
-             'HFEligDaySP',
-             'AidCodeSP3', 
-             'RespCountySP3',
-             'EligibilityStatusSP3']
-
-    df=pd.wide_to_long(df, stubs, i = 'id', j = 'varstocases')
-
-    #Change the column names we had to change earlier back to their original values.
-    column_rename_dictionary = {'xEligibilityStatus':'EligibilityStatus', 
-                                'xRespCounty':'RespCounty',
-                                'xAidCode':'AidCode'}
-    df.rename(columns=column_rename_dictionary, inplace = True)
-
-    #Reset the index so it isn't multilevel.
-    df.reset_index(inplace=True)
-    df['id'] = df.index
-
-    #varstocases isn't needed, drop it.
-    df.drop(['calendar', 'varstocases'], axis=1, inplace=True)
-    
-    #Drop rows that are missing an eligYear or eligMonth.
-    ##Investigate missing data and ways to fill it in.
-    df = df.dropna(subset=['eligYear','eligMonth'])
-    df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
-    df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
+    for column_name in df.columns:
+        if '_' in column_name:
+            df.rename(columns = {column_name:column_name.replace('_','')}, inplace = True)
+    for column_name in df.columns:
+        if ( any(stub in column_name for stub in ['EligibilityStatus', 'RespCounty', 'AidCode'])
+             and 'SP' not in column_name):
+            df.rename(columns = {column_name:('x' + column_name)}, inplace = True)
 
     return df
-
+            
 def drop_unneeded_columns(df):
 
-    stubs = ['AidCode', 'RespCounty', 'EligibilityStatus', 'SOCamount', 'CIN','bday','HCplanText',
-             'MedicareStatus', 'HCPstatus', 'HCPcode', 'OHC', 'eligYear', 'eligMonth']
+    stubs = ['SOCamount', 'CIN', 'bday', 'HCplanText', 'MedicareStatus', 'HCPstatus', 'HCPcode', 
+             'OHC', 'eligYear', 'eligMonth', 'EligibilityStatus', 'RespCounty', 'AidCode']
 
-    columns_to_keep = [col_name for col_name in df.columns for stub_name in stubs if 
-                       stub_name in col_name]
+    columns_to_keep = []
+
+    for stub_name in stubs:
+        for column_name in df.columns:
+            if stub_name in column_name:
+                columns_to_keep.append(column_name)
 
     df = df[columns_to_keep]
 
@@ -227,13 +172,23 @@ def drop_unneeded_columns(df):
 
 def wide_to_long(df):
 
+    def remove_month_suffix(name_list, suffix):
+        """Remove the month indicator (1-15) appended to the base column name"""
+        for index, name in enumerate(name_list):
+            name_list[index] = name[:-(len(str(suffix)))]
+        return name_list
+
+    #Drop underscores from all names and prepend 'x' to AidCode,RespCounty and EligibilityStatus
+    df = rename_columns(df)
+    #Only a subset of columns are needed, drop all others.
     df = drop_unneeded_columns(df)
 
+    #These are the stubs, or start of, column names that need to be kept.
     stubs = ['eligYear', 
              'eligMonth',
-             'AidCode',
-             'RespCounty', 
-             'EligibilityStatus',
+             'xAidCode',
+             'xRespCounty', 
+             'xEligibilityStatus',
              'SOCamount',
              'MedicareStatus', 
              'HCPstatus',
@@ -248,24 +203,57 @@ def wide_to_long(df):
              'EligibilityStatusSP2', 
              'AidCodeSP3', 
              'RespCountySP3',
-             'EligibilityStatusSP3',
-             'CIN',
-             'bday']
+             'EligibilityStatusSP3']
 
-    suffixes = ['_'+str(x) for x in range(1,16)]
+    #These are the columns that will be kept as is.
+    ids = ['CIN','bday']
 
-    df2 = df[stubs]
-    
-    for suffix in suffixes:
+    #Initialize and empty dataframe.
+    new_df = pd.DataFrame()
+
+    #Populate the new stub with data from the original dataframe.
+    new_df = df[stubs]
+    new_df[ids] = df[ids]
+
+    #Drop the columns that were just added to the new data frame from the old data frame.
+    df = df.drop(stubs, axis = 1)
+
+    #For each month numbered 15 through 1, for each stub name in stubs, if that stubs name
+    #matches the start of a column name in df.columns and the end of that column name is
+    #the number of the month, append that column name to the list month_columns.
+    for x in reversed(range(1,16)):
         month_columns = []
-        for column in df.columns:
-            if column.endswith(suffix):
-                month_columns.append(column)
-        df2.append(df[month_columns])
-        df.drop(month_columns, inplace = True, axis = 1)
+        for stub in stubs:
+            for column in df.columns:
+                column_minus_stub = column.replace(stub,'')
+                if ((stub in column) and (column_minus_stub.endswith(str(x)))):
+                    month_columns.append(column)
 
-    df = df2
+        #Make a copy of month_columns as month_plus_ids and add 'CIN' and 'bday' to it.
+        month_plus_ids = month_columns[:]
+        month_plus_ids.extend(ids)
 
+        #
+        temp_df = df[month_plus_ids]
+
+        main_to_month_mapping = {column_name:new_column_name for column_name, new_column_name in
+                                 zip(month_columns,remove_month_suffix(month_columns[:],x))}
+
+        temp_df.rename(columns=main_to_month_mapping,inplace = True)
+
+        new_df = new_df.append(temp_df, ignore_index = True)
+        df = df.drop(month_columns, axis = 1)
+
+    #Remove 'x' from column names where it is no longer needed.
+    new_df.rename(columns={'xAidCode':'AidCode', 'xRespCounty':'RespCounty', 
+                       'xEligibilityStatus':'EligibilityStatus'}, inplace = True)
+
+    #Assign our new_df to the old dataframes variable, df.
+    df = new_df
+
+
+    
+    df.dropna(subset=['eligYear','eligMonth'], inplace = True)
     df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
     df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
 
@@ -462,13 +450,14 @@ def create_meds_explode(df):
     with open('columns_to_save.json') as f:
         columns_to_save = json.load(f)
 
+    #A number of columns are saved under different names than they were imported as.
     rename_dictionary = {'AidCodeSP1':'aidCodeSP1', 'AidCodeSP2':'aidCodeSP2',
                          'AidCodeSP3':'aidCodeSP3', 'Full':'full', 'Fullsp1':'fullsp1',
                          'Fullsp2':'fullsp2', 'Fullsp3':'fullsp3', 'HCplanText':'HCPlanText',
                          'eligYear':'eligibility_year', 'eligMonth': 'eligibility_month'}
-
     df.rename(columns = rename_dictionary, inplace = True)
 
+    #Create a MedsMonth column that is the same as calendar.
     df['MedsMonth'] = df['calendar']
 
     #These are types and formats of columns not originally in the Medi-Cal file.

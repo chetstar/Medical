@@ -27,7 +27,7 @@ print('Uncut.sav finished at: {}'.format(datetime.datetime.now()))
 #Change the shape of the dataframe.  Make it longer by making each month its own row.
 #df = medical_functions.wide_to_long_by_month(df)
 df = medical_functions.wide_to_long(df)
-print('wide_to_long_by_month finished at: {}'.format(datetime.datetime.now()))
+print('wide_to_long finished at: {}'.format(datetime.datetime.now()))
 
 #Create a single column, MCelig, with a boolean eligibility status.
 df = df.apply(medical_functions.create_mcelig, axis = 1)
@@ -36,10 +36,6 @@ print('MCelig created at: {}'.format(datetime.datetime.now()))
 #Drop months where there is no eligibility.
 df = medical_functions.drop_ineligible_months(df)
 print('Ineligible months dropped at: {}'.format(datetime.datetime.now()))
-
-#Change the shape of the dataframe.  Make it longer by taking each set of four (aidcode,status,
-#respcounty) and breaking them into their own row.
-#df = medical_functions.wide_to_long_by_aidcode(df)
 
 #Creates a Medi-Cal rank based on EligibilityStatus, RespCounty, Full and FFP columns.
 df = df.apply(medical_functions.create_medical_rank_from_wide_data, axis = 1)
