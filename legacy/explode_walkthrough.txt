@@ -27,7 +27,8 @@ MCelig to 1.  'good' is defined as having a starting character less than 5.
 
 ?9.Drop MCelig column.
 
-*10. Wide to long by aid code.
+10. Wide to long by aid code.(Thats not what is going on in this part of the code!)
+This brings in the aidcode file 4 times, making 4 full, ffp columns
 
 *11. If AidCode is 10,20 or 60 and the first character of EligibilityStatus < 5 SSI = 1.
 That creates a new column SSI and populates it with 1 if those conditions are met and leaves it 
