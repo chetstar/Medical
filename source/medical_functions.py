@@ -170,18 +170,13 @@ def drop_unneeded_columns(df):
 
     return df
 
-def wide_to_long(df):
+def wide_to_long(row):
 
     def remove_month_suffix(name_list, suffix):
         """Remove the month indicator (1-15) appended to the base column name"""
         for index, name in enumerate(name_list):
             name_list[index] = name[:-(len(str(suffix)))]
         return name_list
-
-    #Drop underscores from all names and prepend 'x' to AidCode,RespCounty and EligibilityStatus
-    df = rename_columns(df)
-    #Only a subset of columns are needed, drop all others.
-    df = drop_unneeded_columns(df)
 
     #These are the stubs, or start of, column names that need to be kept.
     stubs = ['eligYear', 'eligMonth', 'xAidCode', 'xRespCounty', 'xEligibilityStatus',
@@ -192,15 +187,14 @@ def wide_to_long(df):
     #These are the columns that will be kept as is.
     ids = ['CIN','bday']
 
-    #Initialize and empty dataframe.
+    #Initialize an empty dataframe.
     new_df = pd.DataFrame()
 
     #Populate the new stub with data from the original dataframe.
-    new_df = df[stubs]
-    new_df[ids] = df[ids]
-
-    #Drop the columns that were just added to the new data frame from the old data frame.
-    df = df.drop(stubs, axis = 1)
+    #print('row[stubs+ids] is :', row[stubs+ids])
+    new_df = new_df.append(row[stubs+ids])
+    #print('new_df after first append:\n', new_df)
+    row.drop(stubs, inplace = True )
 
     #For each month numbered 15 through 1, for each stub name in stubs, if that stubs name
     #matches the start of a column name in df.columns and the end of that column name is
@@ -208,35 +202,41 @@ def wide_to_long(df):
     for x in reversed(range(1,16)):
         month_columns = []
         for stub in stubs:
-            for column in df.columns:
-                column_minus_stub = column.replace(stub,'')
-                if ((stub in column) and (column_minus_stub.endswith(str(x)))):
-                    month_columns.append(column)
-
+            for name in row.index:
+                name_minus_stub = name.replace(stub,'')
+                if ((stub in name) and (name_minus_stub.endswith(str(x)))):
+                    month_columns.append(name)
+        
+        print('Month columns is:', month_columns)
         #Make a copy of month_columns as month_plus_ids and add 'CIN' and 'bday' to it.
         month_plus_ids = month_columns[:]
         month_plus_ids.extend(ids)
 
         #Create a temp data frame with a copy of the wanted rows from the original dataframe.
-        temp_df = df[month_plus_ids]
+        temp_df = pd.DataFrame(row[month_plus_ids]).T
+        
+        row.drop(month_columns, inplace = True)
+        #print(type(new_df))
 
         #Create a dictionary that maps the current months column names to the column names
         #needed to append to the new_df.
         main_to_month_mapping = {column_name:new_column_name for column_name, new_column_name in
                                  zip(month_columns,remove_month_suffix(month_columns[:],x))}
+        print('main_to_month_mapping is: ', main_to_month_mapping)
 
         #Rename the columns of the temp_df useing the main_to_month_mapping.
         temp_df.rename(columns=main_to_month_mapping,inplace = True)
-
+        
+        #import pdb; pdb.set_trace()
+        print('new_df_index: ', new_df.index)
+        print('temp_df_index: ', temp_df.index)
         #Add the rows of temp_df to the new_df.
+        import pdb; pdb.set_trace()
         new_df = new_df.append(temp_df, ignore_index = True)
-
-        #Drop the columns that are now in the new_df from the old_df.
-        df = df.drop(month_columns, axis = 1)
 
     #Remove 'x' from column names where it is no longer needed.
     new_df.rename(columns={'xAidCode':'AidCode', 'xRespCounty':'RespCounty', 
-                       'xEligibilityStatus':'EligibilityStatus'}, inplace = True)
+                           'xEligibilityStatus':'EligibilityStatus'}, inplace = True)
 
     return new_df
 
@@ -284,7 +284,7 @@ def wide_rank(row):
     
     else: return 99
 
-def create_medical_rank_from_wide_data(row):
+def create_medical_rank(row):
     """Create mcrank, Primary_Aid_Code, and ELIGIBILITY_COUNTY_code columns from Medi-Cal data
     that has not undergone wide_to_long_by_aidcode."""
 
@@ -339,8 +339,21 @@ def drop_ineligible_months(df):
     #df["id"] = df.index
     return df
 
+def aid_code_matching(df):
+
+    #Merge in text form of aid codes.
+    #df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCode', right_on = 'aidcode')
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP1', right_on = 'aidcode',
+                  suffixes = ('','sp1'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP2', right_on = 'aidcode',
+                  suffixes = ('','sp2'))
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP3', right_on = 'aidcode',
+                  suffixes = ('','sp3'))
+        
+    return df
+
 def set_status(row):
-    
     #Condense aidcode columns into a list.
     aidcodes = [row['AidCode'], row['AidCodeSP1'], row['AidCodeSP2'], row['AidCodeSP3']]
         
@@ -403,53 +416,50 @@ def set_status(row):
     else:
         row['SOCmc'] = np.nan
 
-    return row
-
-def cal(df):
     #Create calendar column.
-    df.dropna(subset=['eligYear','eligMonth'], inplace = True)
-    df[['eligYear','eligMonth']] = df[['eligYear','eligMonth']].astype(int)
-    df['calendar'] = pd.to_datetime(df.eligYear*100 + df.eligMonth, format='%Y%m')
+    #df.dropna(subset=['eligYear','eligMonth'], inplace = True)
+    row[['eligYear','eligMonth']] = row[['eligYear','eligMonth']].astype(int)
+    row['calendar'] = pd.to_datetime(row.eligYear*100 + row.eligMonth, format='%Y%m')
+
+    #Create a MedsMonth column that is the same as calendar.
+    row['MedsMonth'] = row['calendar']
+
+    return row
 
     #Bring in aidcode data from the aidcodesshort.csv.
     aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
 
-    #Merge in text form of aid codes.
-    #df = pd.merge(df, ccstext, how='left',left_on='AidCode',right_on='AidCode')
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCode', right_on = 'aidcode')
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP1', right_on = 'aidcode',
-                  suffixes = ('','sp1'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP2', right_on = 'aidcode',
-                  suffixes = ('','sp2'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'AidCodeSP3', right_on = 'aidcode',
-                  suffixes = ('','sp3'))
+def create_calendar_column(row):
+    #Create calendar and bday columns.
+    row['calendar'] = pd.to_datetime(row['eligYear'].astype(int)*100 + 
+                                     row['eligMonth'].astype(int), format='%Y%m')
+    row['bday'] = pd.to_datetime(row['year'] + row['month'] + row['day'], format='%Y%m%d')
 
-    return df
-
-    
-def create_statuses(df):
-    """Create columns for SSI, Foster, Disabled, CCSaidCode, IHSSaidCode"""
-
-    df = df.apply(set_status, axis = 1)
-
-    df[['Disabled','Foster']] = df[['DisabledX','FosterX']]
-    
-    return df
+    return row
 
 def create_meds_explode(df):
-    #Load list of columns to save for medsExplodeNoDupeAidCodes.sav
-    with open('columns_to_save.json') as f:
-        columns_to_save = json.load(f)
+
+    df = drop_unneeded_columns(df)
+    df = rename_columns(df)
+
+    var_types = variable_types
+    var_formats = variable_formats
 
     #A number of columns are saved under different names than they were imported as.
     rename_dictionary = {'AidCodeSP1':'aidCodeSP1', 'AidCodeSP2':'aidCodeSP2',
                          'AidCodeSP3':'aidCodeSP3', 'Full':'full', 'Fullsp1':'fullsp1',
                          'Fullsp2':'fullsp2', 'Fullsp3':'fullsp3', 'HCplanText':'HCPlanText',
                          'eligYear':'eligibility_year', 'eligMonth': 'eligibility_month'}
-    df.rename(columns = rename_dictionary, inplace = True)
 
-    #Create a MedsMonth column that is the same as calendar.
-    df['MedsMonth'] = df['calendar']
+    #These are the stubs, or start of, column names that need to be kept.
+    stubs = ['eligYear', 'eligMonth', 'xAidCode', 'xRespCounty', 'xEligibilityStatus',
+             'SOCamount', 'MedicareStatus', 'HCPstatus', 'HCPcode', 'HCplanText', 'OHC',
+             'AidCodeSP1', 'RespCountySP1', 'EligibilityStatusSP1', 'AidCodeSP2', 'RespCountySP2',
+             'EligibilityStatusSP2', 'AidCodeSP3', 'RespCountySP3', 'EligibilityStatusSP3']
+
+    #Load list of columns to save for medsExplodeNoDupeAidCodes.sav
+    with open('columns_to_save.json') as f:
+        columns_to_save = json.load(f)
 
     #These are types and formats of columns not originally in the Medi-Cal file.
     new_types = {'primary_Aid_Code':2, 'ELIGIBILITY_COUNTY_code':2, 'FFP':0, 'FFPsp1':0,
@@ -462,4 +472,35 @@ def create_meds_explode(df):
 
     new_formats = {'bday': 'DATE11', 'calendar':'MOYR6', 'MedsMonth':'MOYR6'}
 
-    create_sav_file(config.nodupe_file, df, columns_to_save, new_types, new_formats)
+    var_types.update(new_types)
+    var_formats.update(new_formats)
+
+    #Remove key value pairs where the key is not in columns_to_save. This must be
+    #done because SavWriter will choke if there is an item in types/formats dictionaries
+    #that is not in the list of columns to save.
+    var_types = { column: var_types[column] for column in columns_to_save if
+                  var_types.get(column) != None}
+    var_formats = { column: var_formats[column] for column in columns_to_save if 
+                    var_formats.get(column) != None}
+
+    with SavWriter(config.nodupe_file, columns_to_save, var_types, formats = var_formats, 
+                   ioUtf8 = True) as writer:
+
+        def all_meds_explode(wide_row):
+            df_narrow = wide_to_long(wide_row)
+            print('df_narrow types is: ', type(df_narrow))
+            print('df_narrow.columns is:\n', df_narrow.columns)
+            df_narrow = df_narrow.apply(create_mcelig, axis = 1)
+            import pdb; pdb.set_trace()
+            df_narrow = df_narrow.apply(create_calendar_column, axis = 1)
+            df_narrow = drop_ineligible_months(df_narrow)
+            df_narrow = aid_code_matching(df_narrow)
+            df_narrow = df_narrow.apply(set_status, axis = 1)
+            df_narrow = df_narrow.apply(create_medical_rank, axis = 1)
+
+            df_narrow.rename(columns = rename_dictionary, inplace = True)
+            
+            for row in map(list, df_narrow[columns_to_save].values):
+                writer.writerow(row)
+
+        df.apply(all_meds_explode, axis = 1)
