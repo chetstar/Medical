@@ -14,6 +14,10 @@ from medical_meta import (translation_dictionary,
                           converters)
 from savReaderWriter import SavWriter
 
+#Bring in aidcode data from the aidcodesshort.csv.
+aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
+
+
 def load_medical_data(file_location):
     df = pd.read_fwf(file_location,
                      colspecs = column_specifications,
@@ -142,15 +146,15 @@ def create_meds_current_uncut(df):
 
     #Create an SPSS .sav file with the columns named in columns_to_save.
     create_sav_file(config.meds_current_uncut_file, df, columns_to_save, new_types, new_formats)
-def rename_columns(df):
 
+def rename_columns(df):
     for column_name in df.columns:
         if '_' in column_name:
-            df.rename(columns = {column_name:column_name.replace('_','')}, inplace = True)
+            df = df.rename(columns = {column_name:column_name.replace('_','')})
     for column_name in df.columns:
         if ( any(stub in column_name for stub in ['EligibilityStatus', 'RespCounty', 'AidCode'])
              and 'SP' not in column_name):
-            df.rename(columns = {column_name:('x' + column_name)}, inplace = True)
+            df = df.rename(columns = {column_name:('x' + column_name)})
 
     return df
             
@@ -206,8 +210,7 @@ def wide_to_long(row):
                 name_minus_stub = name.replace(stub,'')
                 if ((stub in name) and (name_minus_stub.endswith(str(x)))):
                     month_columns.append(name)
-        
-        print('Month columns is:', month_columns)
+
         #Make a copy of month_columns as month_plus_ids and add 'CIN' and 'bday' to it.
         month_plus_ids = month_columns[:]
         month_plus_ids.extend(ids)
@@ -215,23 +218,18 @@ def wide_to_long(row):
         #Create a temp data frame with a copy of the wanted rows from the original dataframe.
         temp_df = pd.DataFrame(row[month_plus_ids]).T
         
+        #Drop 'columns' that are no longer needed.
         row.drop(month_columns, inplace = True)
-        #print(type(new_df))
 
         #Create a dictionary that maps the current months column names to the column names
         #needed to append to the new_df.
         main_to_month_mapping = {column_name:new_column_name for column_name, new_column_name in
                                  zip(month_columns,remove_month_suffix(month_columns[:],x))}
-        print('main_to_month_mapping is: ', main_to_month_mapping)
 
         #Rename the columns of the temp_df useing the main_to_month_mapping.
         temp_df.rename(columns=main_to_month_mapping,inplace = True)
         
-        #import pdb; pdb.set_trace()
-        print('new_df_index: ', new_df.index)
-        print('temp_df_index: ', temp_df.index)
         #Add the rows of temp_df to the new_df.
-        import pdb; pdb.set_trace()
         new_df = new_df.append(temp_df, ignore_index = True)
 
     #Remove 'x' from column names where it is no longer needed.
@@ -336,7 +334,6 @@ def drop_ineligible_months(df):
     """Select one instance of a given (CIN, calendar) and the highest MCelig."""
     df = df.dropna(subset=['MCelig'])
     df = df.sort(['CIN','calendar','MCelig']).groupby(['CIN','calendar'], as_index=False).last()
-    #df["id"] = df.index
     return df
 
 def aid_code_matching(df):
@@ -416,24 +413,15 @@ def set_status(row):
     else:
         row['SOCmc'] = np.nan
 
-    #Create calendar column.
-    #df.dropna(subset=['eligYear','eligMonth'], inplace = True)
-    row[['eligYear','eligMonth']] = row[['eligYear','eligMonth']].astype(int)
-    row['calendar'] = pd.to_datetime(row.eligYear*100 + row.eligMonth, format='%Y%m')
-
     #Create a MedsMonth column that is the same as calendar.
     row['MedsMonth'] = row['calendar']
 
     return row
 
-    #Bring in aidcode data from the aidcodesshort.csv.
-    aidcodesshort = pd.read_csv(config.aidcodes_file,header=0)
-
 def create_calendar_column(row):
     #Create calendar and bday columns.
-    row['calendar'] = pd.to_datetime(row['eligYear'].astype(int)*100 + 
-                                     row['eligMonth'].astype(int), format='%Y%m')
-    row['bday'] = pd.to_datetime(row['year'] + row['month'] + row['day'], format='%Y%m%d')
+    row['calendar'] = pd.to_datetime(int(row['eligYear'])*100 + 
+                                     int(row['eligMonth']), format='%Y%m')
 
     return row
 
@@ -488,19 +476,15 @@ def create_meds_explode(df):
 
         def all_meds_explode(wide_row):
             df_narrow = wide_to_long(wide_row)
-            print('df_narrow types is: ', type(df_narrow))
-            print('df_narrow.columns is:\n', df_narrow.columns)
             df_narrow = df_narrow.apply(create_mcelig, axis = 1)
-            import pdb; pdb.set_trace()
             df_narrow = df_narrow.apply(create_calendar_column, axis = 1)
             df_narrow = drop_ineligible_months(df_narrow)
             df_narrow = aid_code_matching(df_narrow)
             df_narrow = df_narrow.apply(set_status, axis = 1)
             df_narrow = df_narrow.apply(create_medical_rank, axis = 1)
-
             df_narrow.rename(columns = rename_dictionary, inplace = True)
-            
-            for row in map(list, df_narrow[columns_to_save].values):
-                writer.writerow(row)
+            if len(df_narrow.index) != 0:
+                for row in map(list, df_narrow[columns_to_save].values):
+                    writer.writerow(row)
 
         df.apply(all_meds_explode, axis = 1)
