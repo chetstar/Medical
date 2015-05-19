@@ -278,7 +278,7 @@ def wide_rank(row):
     elif is_eligible() and ffp_ge_than(65 ): return 11
     elif is_eligible() and ffp_ge_than(50 ): return 12
 
-    elif is_eligible() and row['AidCode'] and ffp_ge_than(1): return 13
+    elif is_eligible() and row[4] and ffp_ge_than(1): return 13
     
     else: return 99
 
