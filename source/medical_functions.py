@@ -174,13 +174,15 @@ def drop_unneeded_columns(df):
 
     return df
 
-def wide_to_long(row):
 
-    def remove_month_suffix(name_list, suffix):
-        """Remove the month indicator (1-15) appended to the base column name"""
-        for index, name in enumerate(name_list):
-            name_list[index] = name[:-(len(str(suffix)))]
-        return name_list
+def remove_month_suffix(name_list, suffix):
+    """Remove the month indicator (1-15) appended to the base column name"""
+    for index, name in enumerate(name_list):
+        name_list[index] = name[:-(len(str(suffix)))]
+    return name_list
+
+
+def wide_to_long(row, column_name_lists, column_rename_dictionaries, names_with_ids_lists):
 
     #These are the stubs, or start of, column names that need to be kept.
     stubs = ['eligYear', 'eligMonth', 'xAidCode', 'xRespCounty', 'xEligibilityStatus',
@@ -193,42 +195,16 @@ def wide_to_long(row):
 
     #Initialize an empty dataframe.
     new_df = pd.DataFrame()
-
     #Populate the new stub with data from the original dataframe.
-    #print('row[stubs+ids] is :', row[stubs+ids])
     new_df = new_df.append(row[stubs+ids])
-    #print('new_df after first append:\n', new_df)
-    row.drop(stubs, inplace = True )
 
-    #For each month numbered 15 through 1, for each stub name in stubs, if that stubs name
-    #matches the start of a column name in df.columns and the end of that column name is
-    #the number of the month, append that column name to the list month_columns.
-    for x in reversed(range(1,16)):
-        month_columns = []
-        for stub in stubs:
-            for name in row.index:
-                name_minus_stub = name.replace(stub,'')
-                if ((stub in name) and (name_minus_stub.endswith(str(x)))):
-                    month_columns.append(name)
-
-        #Make a copy of month_columns as month_plus_ids and add 'CIN' and 'bday' to it.
-        month_plus_ids = month_columns[:]
-        month_plus_ids.extend(ids)
-
+    for month in xrange(0,15):
         #Create a temp data frame with a copy of the wanted rows from the original dataframe.
-        temp_df = pd.DataFrame(row[month_plus_ids]).T
+        temp_df = pd.DataFrame(row[names_with_ids_lists[month]]).T
         
-        #Drop 'columns' that are no longer needed.
-        row.drop(month_columns, inplace = True)
-
-        #Create a dictionary that maps the current months column names to the column names
-        #needed to append to the new_df.
-        main_to_month_mapping = {column_name:new_column_name for column_name, new_column_name in
-                                 zip(month_columns,remove_month_suffix(month_columns[:],x))}
-
         #Rename the columns of the temp_df useing the main_to_month_mapping.
-        temp_df.rename(columns=main_to_month_mapping,inplace = True)
-        
+        temp_df.rename(columns=column_rename_dictionaries[month], inplace = True)
+
         #Add the rows of temp_df to the new_df.
         new_df = new_df.append(temp_df, ignore_index = True)
 
@@ -471,11 +447,40 @@ def create_meds_explode(df):
     var_formats = { column: var_formats[column] for column in columns_to_save if 
                     var_formats.get(column) != None}
 
+    column_name_lists = []
+    column_rename_dictionaries = []
+    names_with_ids_lists = []
+
+    remaining_columns = set()
+    for column in df.columns:
+        remaining_columns.add(column)
+
+    for x in reversed(range(1,16)):
+        month_columns = []
+        for stub in stubs:
+            for name in remaining_columns:
+                name_minus_stub = name.replace(stub,'')
+                if ((stub in name) and (name_minus_stub.endswith(str(x)))):
+                    month_columns.append(name)    
+
+        column_name_lists.append(month_columns)
+        rename_dict = {column_name:new_column_name for column_name, new_column_name in
+                       zip(month_columns,remove_month_suffix(month_columns[:],x))}
+        column_rename_dictionaries.append(rename_dict)
+
+        month_plus_ids = month_columns[:]
+        month_plus_ids.extend(['CIN','bday'])
+        names_with_ids_lists.append(month_plus_ids)
+
+        remaining_columns = [name for name in remaining_columns if name not in month_columns]
+
     with SavWriter(config.nodupe_file, columns_to_save, var_types, formats = var_formats, 
                    ioUtf8 = True) as writer:
 
-        def all_meds_explode(wide_row):
-            df_narrow = wide_to_long(wide_row)
+        def all_meds_explode(wide_row, column_name_lists, column_rename_dictionaries,
+                             names_with_ids_lists):
+            df_narrow = wide_to_long(wide_row, column_name_lists, column_rename_dictionaries,
+                                     names_with_ids_lists)
             df_narrow = df_narrow.apply(create_mcelig, axis = 1)
             df_narrow = df_narrow.apply(create_calendar_column, axis = 1)
             df_narrow = drop_ineligible_months(df_narrow)
@@ -483,8 +488,11 @@ def create_meds_explode(df):
             df_narrow = df_narrow.apply(set_status, axis = 1)
             df_narrow = df_narrow.apply(create_medical_rank, axis = 1)
             df_narrow.rename(columns = rename_dictionary, inplace = True)
+            #This checks to make sure there are rows in df_narrow before trying to write.
+            #No data is possible if an individual has no eligible months.
             if len(df_narrow.index) != 0:
                 for row in map(list, df_narrow[columns_to_save].values):
                     writer.writerow(row)
 
-        df.apply(all_meds_explode, axis = 1)
+        df.apply(all_meds_explode, axis = 1, args = (column_name_lists, column_rename_dictionaries,
+                                                     names_with_ids_lists))
