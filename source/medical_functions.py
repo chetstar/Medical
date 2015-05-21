@@ -237,26 +237,44 @@ def wide_rank(row):
     def ffp_ge_than(percentage):
         if row[3] >= percentage:
             return True
+            
+    if is_eligible():
+        if is_local():
+            if is_covered():
+                if ffp_ge_than(100): 
+                    return 1
+                elif ffp_ge_than(65 ): 
+                    return 2
+                elif ffp_ge_than(50 ): 
+                    return 3
+            else:
+                if ffp_ge_than(100): 
+                    return 7
+                elif ffp_ge_than(65 ): 
+                    return 8
+                elif ffp_ge_than(50 ): 
+                    return 9
+        else:
+            if is_covered(): 
+                if ffp_ge_than(100): 
+                    return 4
+                elif ffp_ge_than(65 ): 
+                    return 5
+                elif ffp_ge_than(50 ): 
+                    return 6
+            else:
+                if ffp_ge_than(100): 
+                    return 10
+                if ffp_ge_than(65 ): 
+                    return 11
+                if ffp_ge_than(50 ): 
+                    return 12
 
-    if   is_eligible() and is_local() and is_covered() and ffp_ge_than(100): return 1
-    elif is_eligible() and is_local() and is_covered() and ffp_ge_than(65 ): return 2
-    elif is_eligible() and is_local() and is_covered() and ffp_ge_than(50 ): return 3
+    elif row[4] and ffp_ge_than(1): 
+        return 13
 
-    elif is_eligible() and is_covered() and ffp_ge_than(100): return 4
-    elif is_eligible() and is_covered() and ffp_ge_than(65 ): return 5
-    elif is_eligible() and is_covered() and ffp_ge_than(50 ): return 6
-
-    elif is_eligible() and is_local() and ffp_ge_than(100): return 7
-    elif is_eligible() and is_local() and ffp_ge_than(65 ): return 8
-    elif is_eligible() and is_local() and ffp_ge_than(50 ): return 9
-
-    elif is_eligible() and ffp_ge_than(100): return 10
-    elif is_eligible() and ffp_ge_than(65 ): return 11
-    elif is_eligible() and ffp_ge_than(50 ): return 12
-
-    elif is_eligible() and row[4] and ffp_ge_than(1): return 13
-    
-    else: return 99
+    else:
+        return 99
 
 def create_medical_rank(row):
     """Create mcrank, Primary_Aid_Code, and ELIGIBILITY_COUNTY_code columns from Medi-Cal data
@@ -309,7 +327,7 @@ def create_mcelig(row):
 def drop_ineligible_months(df):
     """Select one instance of a given (CIN, calendar) and the highest MCelig."""
     df = df.dropna(subset=['MCelig'])
-    df = df.sort(['CIN','calendar','MCelig']).groupby(['CIN','calendar'], as_index=False).last()
+    #df = df.sort(['CIN','calendar','MCelig']).groupby(['CIN','calendar'], as_index=False).last()
     return df
 
 def aid_code_matching(df):
@@ -479,20 +497,46 @@ def create_meds_explode(df):
 
         def all_meds_explode(wide_row, column_name_lists, column_rename_dictionaries,
                              names_with_ids_lists):
+            a = datetime.datetime.now()
             df_narrow = wide_to_long(wide_row, column_name_lists, column_rename_dictionaries,
                                      names_with_ids_lists)
+            b = datetime.datetime.now()
             df_narrow = df_narrow.apply(create_mcelig, axis = 1)
-            df_narrow = df_narrow.apply(create_calendar_column, axis = 1)
             df_narrow = drop_ineligible_months(df_narrow)
+            c = datetime.datetime.now()
+            df_narrow = df_narrow.apply(create_calendar_column, axis = 1)
+            d = datetime.datetime.now()
             df_narrow = aid_code_matching(df_narrow)
+            e = datetime.datetime.now()
             df_narrow = df_narrow.apply(set_status, axis = 1)
+            f = datetime.datetime.now()
             df_narrow = df_narrow.apply(create_medical_rank, axis = 1)
+            g = datetime.datetime.now()
             df_narrow.rename(columns = rename_dictionary, inplace = True)
+            h = datetime.datetime.now()
             #This checks to make sure there are rows in df_narrow before trying to write.
             #No data is possible if an individual has no eligible months.
             if len(df_narrow.index) != 0:
                 for row in map(list, df_narrow[columns_to_save].values):
                     writer.writerow(row)
-
+            i = datetime.datetime.now()
+            ab = str(b-a)
+            bc = str(c-b)
+            cd = str(d-c)
+            de = str(e-d)
+            ef = str(f-e)
+            fg = str(g-f)
+            gh = str(h-g)
+            hi = str(i-h)
+            total = str(i-a)
+            print('Wide to long: ', ab)
+            print('Drop ineligible rows: ', bc)
+            print('Create calendar column: ', cd)
+            print('Aidcode Matching: ', de)
+            print('Create statuses: ', ef)
+            print('Create MC rank: ', fg)
+            print('Column renames: ', gh)
+            print('Write rows: ', hi)
+            print('Time to finish one wide row: ',total)
         df.apply(all_meds_explode, axis = 1, args = (column_name_lists, column_rename_dictionaries,
                                                      names_with_ids_lists))
