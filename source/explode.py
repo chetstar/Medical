@@ -2,7 +2,6 @@ import json
 
 import pandas as pd
 from savReaderWriter import SavWriter
-from numpy import nan
 
 import config
 
@@ -188,9 +187,8 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
     def create_explode(row):
         create_foster(row)
         create_disabled(row)
-        create_mcrank(row)
+        #create_mcrank(row)
         #create_retromc(row)
-        print(row)
         writer.writerow(list(row[columns_to_save].values))
         return row
 
@@ -229,4 +227,3 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         df = df.apply(create_explode, axis = 1)
 
-        assert(False)
