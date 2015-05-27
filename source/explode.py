@@ -6,6 +6,8 @@ from savReaderWriter import SavWriter
 
 import config
 
+start_time = datetime.now()
+
 #Load column_info.json into column_info.  This is a list of lists.                                 
 with open('explode_columns.json') as f:
     column_info = json.load(f)
@@ -184,8 +186,6 @@ columns_to_save = ['aidcodesp0', 'respcountysp0', 'eligibilitystatussp0']
 
 variable_types = {x:20 for x in columns_to_save}
 
-print('.sav file opened at: ', datetime.now())
-
 with SavWriter(config.nodupe_file, columns_to_save, variable_types, 
                ioUtf8 = True) as writer:
 
@@ -198,27 +198,30 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         return row
 
     for i,df in enumerate(chunked_data_iterator):
-        print('Chunk ', i, ' started at: ', datetime.now())
+        chunkstart = datetime.now()
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
         df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
         df = df.drop(['month','day','year'], axis = 1)
-        print('Wide to long started at: ', datetime.now())
+        wide_start = datetime.now()
         #Wide to long by month.
         df = pd.wide_to_long(df, stubs, 'cin', 'j')
         df = df.reset_index()
-        print('Wide to long finished at: ', datetime.now())
+        print('Wide to long finished in: ', str(datetime.now()-wide_start))
+        elig_drop_start = datetime.now()
         #Drop all rows for months with no eligibility.
         df = df[(df[eligibilities].apply(
             lambda x: x.dropna().str[0].astype(int))).lt(5,axis = 0).any(axis = 1).reindex(
                 index = df.index, fill_value = False)]
-
+        print('Ineligible rows dropped in: ', str(datetime.now()-elig_drop_start))
         #Create calendar column.
         df['calendar'] = pd.to_datetime(df['eligmonth']+df['eligyear'], format='%m%Y')
 
+        aidcode_match_start = datetime.now()
         #Join in aidcode tables.
         df = match_aidcodes(df)
+        print('Aidcode match ran in: ', str(datetime.now()-aidcode_match_start))
 
         #Create ssi column. Populate with '1' if any aidcode in that row is in ssicodes.
         df['ssi'] = df[aidcodes].isin(ssicodes).any(axis = 1).map({True:'1'})
@@ -229,9 +232,11 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
-
+        
+        create_explode_start = datetime.now()
         df = df.apply(create_explode, axis = 1)
+        print('Create_explode finished in: ', str(datetime.now()-create_explode_start))
 
-        print('Chunk ', i, 'finished at: ', datetime.now())
+        print('Chunk finished in: ', str(datetime.now() - chunkstart))
 
-print('Run finished at: ', datetime.now())
+print('Program finished in: ', str(datetime.now() - start_time))
