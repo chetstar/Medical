@@ -189,11 +189,14 @@ variable_types = {x:20 for x in columns_to_save}
 with SavWriter(config.nodupe_file, columns_to_save, variable_types, 
                ioUtf8 = True) as writer:
 
-    def create_explode(row):
+    def create_columns(row):
         create_foster(row)
         create_disabled(row)
         create_mcrank(row)
         #create_retromc(row)
+        return row
+
+    def write_file(row):
         writer.writerow(list(row[columns_to_save].values))
         return row
 
@@ -233,9 +236,13 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
         
-        create_explode_start = datetime.now()
-        df = df.apply(create_explode, axis = 1)
-        print('Create_explode finished in: ', str(datetime.now()-create_explode_start))
+        create_columns_start = datetime.now()
+        df = df.apply(create_columns, axis = 1)
+        print('Create_columns finished in: ', str(datetime.now()-create_columns_start))
+
+        write_file_start = datetime.now()
+        df.apply(write_file, axis = 1)
+        print('Write_file finished in: ', str(datetime.now()-create_columns_start))
 
         print('Chunk finished in: ', str(datetime.now() - chunkstart))
 
