@@ -242,7 +242,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         write_file_start = datetime.now()
         df.apply(write_file, axis = 1)
-        print('Write_file finished in: ', str(datetime.now()-create_columns_start))
+        print('Write_file finished in: ', str(datetime.now()-write_columns_start))
 
         print('Chunk finished in: ', str(datetime.now() - chunkstart))
 
