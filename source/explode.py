@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 import pandas as pd
 from savReaderWriter import SavWriter
@@ -61,10 +62,11 @@ def wide_rank(row):
     This function expects the Medi-Cal data to have NOT undergone wide_to_long_by_aidcode."""
 
     def is_eligible():
-        if str(row[0]) == 'nan':
+        try:
+            if int(row[0][0]) < 5:
+                return True
+        except (ValueError, TypeError):
             return False
-        elif int(str(row[0])[0]) < 5:
-            return True
 
     def is_local():
         if (row[1] == config.local_county_code):
@@ -75,9 +77,12 @@ def wide_rank(row):
             return True
 
     def ffp_ge_than(percentage):
-        if row[3] >= percentage:
-            return True
-            
+        try:
+            if int(row[3]) >= percentage:
+                return True
+        except (ValueError, TypeError):
+            return False
+
     if is_eligible():
         if is_local():
             if is_covered():
@@ -109,9 +114,9 @@ def wide_rank(row):
                     return 11
                 if ffp_ge_than(50 ): 
                     return 12
-
-    #elif row[4] and ffp_ge_than(1): 
-        #return 13
+    
+    elif row[4] and ffp_ge_than(1): 
+        return 13
 
     else:
         return 99
@@ -120,14 +125,14 @@ def create_mcrank(row):
     """Create mcrank, primary_aid_code, and eligibility_county_code columns from medi-cal data
     that has not undergone wide_to_long_by_aidcode."""
 
-    ranking_data=[[row['eligibilitystatussp0'],row['respcountysp0'],
-                   row['fullsp0'],row['ffpsp0'],row['aidcodesp0']],
-                  [row['eligibilitystatussp1'],row['respcountysp1'],
-                   row['fullsp1'],row['ffpsp1'],row['aidcodesp1']],
-                  [row['eligibilitystatussp2'],row['respcountysp2'],
-                   row['fullsp2'],row['ffpsp2'],row['aidcodesp2']],
-                  [row['eligibilitystatussp3'],row['respcountysp3'],
-                   row['fullsp3'],row['ffpsp3'],row['aidcodesp3']]]
+    ranking_data=[[row['eligibilitystatussp0'], row['respcountysp0'],
+                   row['fullsp0'], row['ffpsp0'], row['aidcodesp0']],
+                  [row['eligibilitystatussp1'], row['respcountysp1'],
+                   row['fullsp1'], row['ffpsp1'], row['aidcodesp1']],
+                  [row['eligibilitystatussp2'], row['respcountysp2'],
+                   row['fullsp2'], row['ffpsp2'], row['aidcodesp2']],
+                  [row['eligibilitystatussp3'], row['respcountysp3'],
+                   row['fullsp3'], row['ffpsp3'], row['aidcodesp3']]]
 
     mcrank = 99
     primary_aid_code = None
@@ -139,7 +144,7 @@ def create_mcrank(row):
             mcrank = current_rank
             primary_aid_code = sub_list[4]
             eligibility_county_code = sub_list[1]
-    
+
     row['mcrank'] = mcrank
     row['primary_aid_code'] = primary_aid_code
     row['eligibility_county_code'] = eligibility_county_code
@@ -148,13 +153,13 @@ def create_mcrank(row):
 
 def match_aidcodes(df):
     """Merge in text form of aid codes."""
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp0', right_on = 'aidcode',
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp0', right_on = 'aidcodem',
                   suffixes = ('','sp0'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp1', right_on = 'aidcode',
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp1', right_on = 'aidcodem',
                   suffixes = ('','sp1'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp2', right_on = 'aidcode',
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp2', right_on = 'aidcodem',
                   suffixes = ('','sp2'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp3', right_on = 'aidcode',
+    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp3', right_on = 'aidcodem',
                   suffixes = ('','sp3'))
     df = df.rename(columns = {'ffp':'ffpsp0','full':'fullsp0',
                               'disabled':'disabledsp0','foster':'fostersp0'})
@@ -179,7 +184,7 @@ columns_to_save = ['aidcodesp0', 'respcountysp0', 'eligibilitystatussp0']
 
 variable_types = {x:20 for x in columns_to_save}
 
-print(variable_types)
+print('.sav file opened at: ', datetime.now())
 
 with SavWriter(config.nodupe_file, columns_to_save, variable_types, 
                ioUtf8 = True) as writer:
@@ -187,23 +192,23 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
     def create_explode(row):
         create_foster(row)
         create_disabled(row)
-        #create_mcrank(row)
+        create_mcrank(row)
         #create_retromc(row)
         writer.writerow(list(row[columns_to_save].values))
         return row
 
-    for df in chunked_data_iterator:
-
+    for i,df in enumerate(chunked_data_iterator):
+        print('Chunk ', i, ' started at: ', datetime.now())
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
         df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
         df = df.drop(['month','day','year'], axis = 1)
-
+        print('Wide to long started at: ', datetime.now())
         #Wide to long by month.
         df = pd.wide_to_long(df, stubs, 'cin', 'j')
         df = df.reset_index()
-
+        print('Wide to long finished at: ', datetime.now())
         #Drop all rows for months with no eligibility.
         df = df[(df[eligibilities].apply(
             lambda x: x.dropna().str[0].astype(int))).lt(5,axis = 0).any(axis = 1).reindex(
@@ -227,3 +232,6 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         df = df.apply(create_explode, axis = 1)
 
+        print('Chunk ', i, 'finished at: ', datetime.now())
+
+print('Run finished at: ', datetime.now())
