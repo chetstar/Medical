@@ -153,11 +153,8 @@ def rank(row):
             return False
 
     if is_eligible():
-        print('Its eligible')
         if is_local():
-            print('its local')
             if is_covered():
-                print('itscovered')
                 if ffp_ge_than(100): 
                     row['mcrank'] = 1
                 elif ffp_ge_than(65 ): 
@@ -165,7 +162,6 @@ def rank(row):
                 elif ffp_ge_than(50 ): 
                     row['mcrank'] = 3
             else:
-                print('notcovered')
                 if ffp_ge_than(100): 
                     row['mcrank'] = 7
                 elif ffp_ge_than(65 ): 
@@ -192,11 +188,6 @@ def rank(row):
         row['mcrank'] = 13
     else:
         row['mcrank'] = None
-
-    try:
-        print('mcrank is: ', row['mcrank'])
-    except Exception:
-        pass
 
     return row
 
@@ -270,7 +261,6 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
     def create_columns(row):
         create_foster(row)
         create_disabled(row)
-        #create_mcrank(row)
         #create_retromc(row)
         return row
 
@@ -322,7 +312,9 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         dw = df[cols_to_keep]
         dw['id'] = dw.index
         dw = pd.wide_to_long(dw, aidcode_stubs,'i','j')
+        ranking_process_start = datetime.now()
         dw = dw.apply(rank, axis = 1)
+        print('ranking process finished in :', str(datetime.now()-ranking_process_start))
         dw = dw.sort('mcrank', ascending=True).groupby(['cin','calendar']).first()
         dw['primary_aid_code'] = dw['aidcode']
         dw['eligibility_county_code'] = dw['respcounty']
