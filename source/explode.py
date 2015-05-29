@@ -31,211 +31,6 @@ stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitysta
          'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 'aidcodesp2', 'respcountysp2',
          'eligibilitystatussp2', 'aidcodesp3', 'respcountysp3', 'eligibilitystatussp3']
 
-def is_eligible(column, value = 5):
-    if str(column) == 'nan':
-        return False
-    elif int(str(column)[0]) < value:
-        return True
-
-def create_disabled(row):
-    #Create and set a disabled column to 1 if eligible.
-    if ( (is_eligible(row['eligibilitystatussp0'], value = 9) and row['disabledsp0'] == 1) or
-         (is_eligible(row['eligibilitystatussp1'], value = 9) and row['disabledsp1'] == 1) or
-         (is_eligible(row['eligibilitystatussp2'], value = 9) and row['disabledsp2'] == 1) or
-         (is_eligible(row['eligibilitystatussp3'], value = 9) and row['disabledsp3'] == 1) ):
-        row['disabled'] = '1'
-    else:
-        row ['disabled'] = None
-
-def create_foster(row):
-    #Create and set a foster column to 1 if eligible.
-    if ( (is_eligible(row['eligibilitystatussp0']) and row['fostersp0'] == 1) or
-         (is_eligible(row['eligibilitystatussp1']) and row['fostersp1'] == 1) or
-         (is_eligible(row['eligibilitystatussp2']) and row['fostersp2'] == 1) or
-         (is_eligible(row['eligibilitystatussp3']) and row['fostersp3'] == 1) ):
-        row['foster'] = '1'
-    else:
-        row['foster'] = None
-
-def wide_rank(row):
-    """This function returns a numerical rank depending on the eligibilityStatus, 
-    RespCounty, Full and FFP columns of the Medi-Cal data.
-
-    This function expects the Medi-Cal data to have NOT undergone wide_to_long_by_aidcode."""
-
-    def is_eligible():
-        try:
-            if int(row[0][0]) < 5:
-                return True
-        except (ValueError, TypeError):
-            return False
-
-    def is_local():
-        if (row[1] == config.local_county_code):
-            return True
-
-    def is_covered():
-        if row[2] == '1':
-            return True
-
-    def ffp_ge_than(percentage):
-        try:
-            if int(row[3]) >= percentage:
-                return True
-        except (ValueError, TypeError):
-            return False
-
-    if is_eligible():
-        if is_local():
-            if is_covered():
-                if ffp_ge_than(100): 
-                    return 1
-                elif ffp_ge_than(65 ): 
-                    return 2
-                elif ffp_ge_than(50 ): 
-                    return 3
-            else:
-                if ffp_ge_than(100): 
-                    return 7
-                elif ffp_ge_than(65 ): 
-                    return 8
-                elif ffp_ge_than(50 ): 
-                    return 9
-        else:
-            if is_covered(): 
-                if ffp_ge_than(100): 
-                    return 4
-                elif ffp_ge_than(65 ): 
-                    return 5
-                elif ffp_ge_than(50 ): 
-                    return 6
-            else:
-                if ffp_ge_than(100): 
-                    return 10
-                if ffp_ge_than(65 ): 
-                    return 11
-                if ffp_ge_than(50 ): 
-                    return 12
-    
-    elif row[4] and ffp_ge_than(1): 
-        return 13
-
-    else:
-        return 99
-
-def rank(row):
-    """This function returns a numerical rank depending on the eligibilityStatus, 
-    RespCounty, Full and FFP columns of the Medi-Cal data."""
-
-    def is_eligible():
-        try:
-            if int(row['eligibilitystatus'][0]) < 5:
-                return True
-        except (ValueError, TypeError):
-            return False
-
-    def is_local():
-        if row['respcounty'] == config.local_county_code:
-            return True
-
-    def is_covered():
-        try:
-            if int(row['full']) == 1:
-                return True
-        except (ValueError, TypeError):
-            return False
-
-    def ffp_ge_than(percentage):
-        try:
-            if int(row['ffp']) >= percentage:
-                return True
-        except (ValueError, TypeError):
-            return False
-
-    if is_eligible():
-        if is_local():
-            if is_covered():
-                if ffp_ge_than(100): 
-                    row['mcrank'] = 1
-                elif ffp_ge_than(65 ): 
-                    row['mcrank'] = 2
-                elif ffp_ge_than(50 ): 
-                    row['mcrank'] = 3
-            else:
-                if ffp_ge_than(100): 
-                    row['mcrank'] = 7
-                elif ffp_ge_than(65 ): 
-                    row['mcrank'] = 8
-                elif ffp_ge_than(50 ): 
-                    row['mcrank'] = 9
-        else:
-            if is_covered(): 
-                if ffp_ge_than(100): 
-                    row['mcrank'] = 4
-                elif ffp_ge_than(65 ): 
-                    row['mcrank'] = 5
-                elif ffp_ge_than(50 ): 
-                    row['mcrank'] = 6
-            else:
-                if ffp_ge_than(100): 
-                    row['mcrank'] = 10
-                if ffp_ge_than(65 ): 
-                    row['mcrank'] = 11
-                if ffp_ge_than(50 ): 
-                    row['mcrank'] = 12
-    
-    elif row['aidcode'] and ffp_ge_than(1): 
-        row['mcrank'] = 13
-    else:
-        row['mcrank'] = None
-
-    return row
-
-def create_mcrank(row):
-    """Create mcrank, primary_aid_code, and eligibility_county_code columns from medi-cal data
-    that has not undergone wide_to_long_by_aidcode."""
-
-    ranking_data=[[row['eligibilitystatussp0'], row['respcountysp0'],
-                   row['fullsp0'], row['ffpsp0'], row['aidcodesp0']],
-                  [row['eligibilitystatussp1'], row['respcountysp1'],
-                   row['fullsp1'], row['ffpsp1'], row['aidcodesp1']],
-                  [row['eligibilitystatussp2'], row['respcountysp2'],
-                   row['fullsp2'], row['ffpsp2'], row['aidcodesp2']],
-                  [row['eligibilitystatussp3'], row['respcountysp3'],
-                   row['fullsp3'], row['ffpsp3'], row['aidcodesp3']]]
-
-    mcrank = 99
-    primary_aid_code = None
-    eligibility_county_code = None
-
-    for sub_list in ranking_data:
-        current_rank = wide_rank(sub_list)
-        if current_rank < mcrank:
-            mcrank = current_rank
-            primary_aid_code = sub_list[4]
-            eligibility_county_code = sub_list[1]
-
-    row['mcrank'] = mcrank
-    row['primary_aid_code'] = primary_aid_code
-    row['eligibility_county_code'] = eligibility_county_code
-        
-    return row
-
-def match_aidcodes(df):
-    """Merge in text form of aid codes."""
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp0', right_on = 'aidcodem',
-                  suffixes = ('','sp0'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp1', right_on = 'aidcodem',
-                  suffixes = ('','sp1'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp2', right_on = 'aidcodem',
-                  suffixes = ('','sp2'))
-    df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp3', right_on = 'aidcodem',
-                  suffixes = ('','sp3'))
-    df = df.rename(columns = {'ffp':'ffpsp0','full':'fullsp0',
-                              'disabled':'disabledsp0','foster':'fostersp0'})
-    df = df.drop(['aidcodem','aidcodemsp1','aidcodemsp2','aidcodemsp3'], axis = 1)
-    return df
-
 with open(config.aidcodes_file) as f:
     aidcodesshort = pd.read_csv(f, header = 0)
 
@@ -245,8 +40,6 @@ aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 ssicodes = ['10','20','60']
 ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
 ihsscodes = ['2L','2M','2N']
-fosters = ['fostersp0', 'fostersp1', 'fostersp2', 'fostersp3']
-disableds = ['disabledsp0', 'disabledsp1', 'disabledsp2', 'disabledsp3']
 
 #with open('columns_to_save.json') as f:
 #    columns_to_save = json.load(f)
@@ -258,85 +51,92 @@ variable_types = {x:20 for x in columns_to_save}
 with SavWriter(config.nodupe_file, columns_to_save, variable_types, 
                ioUtf8 = True) as writer:
 
-    def create_columns(row):
-        create_foster(row)
-        create_disabled(row)
-        #create_retromc(row)
-        return row
-
     def write_file(row):
         writer.writerow(list(row[columns_to_save].values))
         return row
 
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
+
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
         df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
         df = df.drop(['month','day','year'], axis = 1)
-        wide_start = datetime.now()
+
         #Wide to long by month.
+        wide_start = datetime.now()
         df = pd.wide_to_long(df, stubs, 'cin', 'j')
         df = df.reset_index()
         print('Wide to long finished in: ', str(datetime.now()-wide_start))
-        elig_drop_start = datetime.now()
+
         #Drop all rows for months with no eligibility.
+        elig_drop_start = datetime.now()
         df = df[(df[eligibilities].apply(
             lambda x: x.dropna().str[0].astype(int))).lt(5,axis = 0).any(axis = 1).reindex(
                 index = df.index, fill_value = False)]
         print('Ineligible rows dropped in: ', str(datetime.now()-elig_drop_start))
+
         #Create calendar column.
         df['calendar'] = pd.to_datetime(df['eligmonth']+df['eligyear'], format='%m%Y')
+                
+        mcrank_start = datetime.now()
 
-        aidcode_match_start = datetime.now()
-        #Join in aidcode tables.
-        df = match_aidcodes(df)
-        print('Aidcode match ran in: ', str(datetime.now()-aidcode_match_start))
+        #Wide to long by aidcode
+        aidcode_stubs = ['aidcode','respcounty','eligibilitystatus']
+        cols_to_keep= [col for col in df.columns for stub in aidcode_stubs if col.startswith(stub)]
+        cols_to_keep.extend(['cin', 'calendar'])
+        dw = df[cols_to_keep]
+        dw['id'] = dw.index
+        dw = pd.wide_to_long(dw, aidcode_stubs, 'cin', 'j')
+        dw = dw.reset_index()
 
+        #Match in additional info on aidcode.
+        dw = pd.merge(dw, aidcodesshort, how = 'left', on = 'aidcode', suffixes = ('', 'r'))
+
+        #Create bitmasks for eligibilitystatus, respcounty, full, disabled and foster statuses.
+        elig = dw['eligibilitystatus'].dropna().str[0].astype(int).le(5).reindex(
+            index = dw.index, fill_value = False)
+        local = dw['respcounty'].dropna().eq('01').reindex(index = dw.index, fill_value = False)
+        covered = dw['full'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+        disabled = dw['disabledx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+        foster = dw['fosterx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+
+        #Create Medi-Cal ranks.
+        dw['mcrank'] = ((dw['aidcode'].notnull()) & (dw['ffp'] >= 1)).map({True:13})
+        dw['mcrank'] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
+        dw['mcrank'] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
+        dw['mcrank'] = dw['ffp'][elig & covered].map({100:4, 65:5, 50:6})
+        dw['mcrank'] = dw['ffp'][elig & local & covered].map({100:1, 65:2, 50:3})
+
+        #Groupby cin and calendar and keep only the row with the best mcrank for each group.
+        dw = dw.sort('mcrank', ascending = True).groupby(['cin', 'calendar']).first()
+
+        #Set primary_aid_code equal to aidcode and eligibility_county_code equal to respcounty.
+        dw['primary_aid_code'] = dw['aidcode']
+        dw['eligibility_county_code'] = dw['respcounty']
+        
+        #Create disabled and foster columns
+        dw['disabled'] = (elig & disabled).map({True:1})
+        dw['foster'] = (elig & foster).map({True:1})
+
+        #Merge the columns we want to keep from the wide_by_aidcode dataframe (dw) back into df.
+        dw = dw.set_index('id')
+        cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank', 'disabled',
+                         'foster']
+        df = pd.merge(df, dw[cols_to_merge], how = 'left', left_index = True, right_index = True) 
+        print('mcrank finished in: ', str(datetime.now()-mcrank_start))
+
+        #If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1. 
+        df['retromc'] = df['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})
         #Create ssi column. Populate with '1' if any aidcode in that row is in ssicodes.
         df['ssi'] = df[aidcodes].isin(ssicodes).any(axis = 1).map({True:'1'})
         df['ccsaidcode'] = df[aidcodes].isin(ccscodes).any(axis = 1).map({True:'1'})
         df['ihssaidcode'] = df[aidcodes].isin(ihsscodes).any(axis = 1).map({True:'1'})
         df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
-        
-        create_columns_start = datetime.now()
-        df = df.apply(create_columns, axis = 1)
-        print('Create_columns finished in: ', str(datetime.now()-create_columns_start))
-        
-        mcrank_start = datetime.now()
-        aidcode_stubs = ['aidcode','respcounty','eligibilitystatus','ffp','full']
-        cols_to_keep= [col for col in df.columns for stub in aidcode_stubs if col.startswith(stub)]
-        cols_to_keep.extend(['cin','calendar'])
-        dw = df[cols_to_keep]
-        dw['id'] = dw.index
-        dw = pd.wide_to_long(dw, aidcode_stubs,'cin','j')
-        ranking_process_start = datetime.now()
-        #dw = dw.apply(rank, axis = 1)
 
-        dw = dw.reset_index()
-
-        elig = dw['eligibilitystatus'].dropna().str[0].astype(int).le(5).reindex(
-            index = dw.index, fill_value = False)
-        local = dw['respcounty'].dropna().eq('01').reindex(index = dw.index, fill_value = False)
-        cover = dw['full'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
-
-        dw['mcrank'] = ((dw['aidcode'].notnull()) & (dw['ffp'] >= 1)).map({True:13})
-        dw['mcrank'] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
-        dw['mcrank'] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
-        dw['mcrank'] = dw['ffp'][elig & cover].map({100:4, 65:5, 50:6})
-        dw['mcrank'] = dw['ffp'][elig & local & cover].map({100:1, 65:2, 50:3})
-
-        print('ranking process finished in :', str(datetime.now()-ranking_process_start))
-        dw = dw.sort('mcrank', ascending=True).groupby(['cin','calendar']).first()
-        dw['primary_aid_code'] = dw['aidcode']
-        dw['eligibility_county_code'] = dw['respcounty']
-        dw = dw.set_index('id')
-        cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank']
-        df = pd.merge(df, dw[cols_to_merge], how = 'left', left_index = True, right_index = True) 
-        print('mcrank finished in: ', str(datetime.now()-mcrank_start))
-
+        #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
         df.apply(write_file, axis = 1)
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
