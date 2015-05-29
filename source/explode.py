@@ -86,7 +86,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         aidcode_stubs = ['aidcode','respcounty','eligibilitystatus']
         cols_to_keep= [col for col in df.columns for stub in aidcode_stubs if col.startswith(stub)]
         cols_to_keep.extend(['cin', 'calendar'])
-        dw = df[cols_to_keep]
+        dw = df[cols_to_keep].copy()
         dw['id'] = dw.index
         dw = pd.wide_to_long(dw, aidcode_stubs, 'cin', 'j')
         dw = dw.reset_index()
@@ -138,7 +138,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
-        df.apply(write_file, axis = 1)
+        df.apply(lambda x: writer.writerow(x[columns_to_save].values), axis = 1)
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
 
         print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
