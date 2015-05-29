@@ -311,9 +311,23 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         cols_to_keep.extend(['cin','calendar'])
         dw = df[cols_to_keep]
         dw['id'] = dw.index
-        dw = pd.wide_to_long(dw, aidcode_stubs,'i','j')
+        dw = pd.wide_to_long(dw, aidcode_stubs,'cin','j')
         ranking_process_start = datetime.now()
-        dw = dw.apply(rank, axis = 1)
+        #dw = dw.apply(rank, axis = 1)
+
+        dw = dw.reset_index()
+
+        elig = dw['eligibilitystatus'].dropna().str[0].astype(int).le(5).reindex(
+            index = dw.index, fill_value = False)
+        local = dw['respcounty'].dropna().eq('01').reindex(index = dw.index, fill_value = False)
+        cover = dw['full'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+
+        dw['mcrank'] = ((dw['aidcode'].notnull()) & (dw['ffp'] >= 1)).map({True:13})
+        dw['mcrank'] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
+        dw['mcrank'] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
+        dw['mcrank'] = dw['ffp'][elig & cover].map({100:4, 65:5, 50:6})
+        dw['mcrank'] = dw['ffp'][elig & local & cover].map({100:1, 65:2, 50:3})
+
         print('ranking process finished in :', str(datetime.now()-ranking_process_start))
         dw = dw.sort('mcrank', ascending=True).groupby(['cin','calendar']).first()
         dw['primary_aid_code'] = dw['aidcode']
