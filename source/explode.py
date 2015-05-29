@@ -138,6 +138,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
+        print('There are {} rows in the dataframe.'.format(len(df)))
         df.apply(lambda x: writer.writerow(x[columns_to_save].values), axis = 1)
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
 
