@@ -12,9 +12,8 @@ start_time = datetime.now()
 with open('explode_columns.json') as f:
     column_info = json.load(f)
 
-#Split column_info into its four component lists.
 #column_names and column_specifications are used by pandas.read_fwf to read in the Medi-Cal file. 
-column_names, column_specifications, types_list, formats_list = zip(*column_info)
+column_names, column_specifications = zip(*column_info)
 
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
@@ -62,9 +61,11 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         #Wide to long by month.
         wide_start = datetime.now()
+        print('There are {} rows prior to wide_to_long by month'.format(len(df)))
         df = pd.wide_to_long(df, stubs, 'cin', 'j')
         df = df.reset_index()
         print('Wide to long finished in: ', str(datetime.now()-wide_start))
+        print('There are {} rows after wide_to_long by month'.format(len(df)))
         print('df.columns after wide to long: ', df.columns)
         print('df.index after wide to long(and after reset index): ', df.index)
 
@@ -86,8 +87,10 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         cols_to_keep.extend(['cin', 'calendar'])
         dw = df[cols_to_keep].copy()
         dw['id'] = dw.index
+        print('There are {} rows prior to wide_to_long by aidcode'.format(len(dw)))
         dw = pd.wide_to_long(dw, aidcode_stubs, 'cin', 'j')
         dw = dw.reset_index()
+        print('There are {} rows after to wide_to_long by aidcode'.format(len(dw)))
 
         #Match in additional info on aidcode.
         dw = pd.merge(dw, aidcodesshort, how = 'left', on = 'aidcode', suffixes = ('', 'r'))
@@ -136,7 +139,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
-        print('There are {} rows in the dataframe.'.format(len(df)))
+        print('There are {} rows in the dataframe prior to writing'.format(len(df)))
         df.apply(lambda x: writer.writerow(x[columns_to_save].values), axis = 1)
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
 
