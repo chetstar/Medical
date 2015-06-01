@@ -51,10 +51,6 @@ variable_types = {x:20 for x in columns_to_save}
 with SavWriter(config.nodupe_file, columns_to_save, variable_types, 
                ioUtf8 = True) as writer:
 
-    def write_file(row):
-        writer.writerow(list(row[columns_to_save].values))
-        return row
-
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
 
@@ -69,6 +65,10 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         df = pd.wide_to_long(df, stubs, 'cin', 'j')
         df = df.reset_index()
         print('Wide to long finished in: ', str(datetime.now()-wide_start))
+        print('df.columns after wide to long: ', df.columns)
+        print('df.index after wide to long(and after reset index): ', df.index)
+        if i == 19:
+            assert(False)
 
         #Drop all rows for months with no eligibility.
         elig_drop_start = datetime.now()
