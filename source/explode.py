@@ -67,8 +67,6 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         print('Wide to long finished in: ', str(datetime.now()-wide_start))
         print('df.columns after wide to long: ', df.columns)
         print('df.index after wide to long(and after reset index): ', df.index)
-        if i == 19:
-            assert(False)
 
         #Drop all rows for months with no eligibility.
         elig_drop_start = datetime.now()
