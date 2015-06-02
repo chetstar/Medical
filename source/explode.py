@@ -19,12 +19,18 @@ column_names, column_specifications = zip(*column_info)
 converters = {name:str for name in column_names}
 
 cins = pd.read_fwf(config.medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
-rows_to_skip = set(cins[pd.isnull(cins['cin'])].index) #Make list of CINless rows.
-print('There are {} rows with no CIN.'.format(len(rows_to_skip)))
+cinless_rows = set(cins[pd.isnull(cins['cin'])].index) #Make set of CINless rows.
+print('There are {} rows with no CIN.'.format(len(cinless_rows)))
+print('CINless rows are: {}.'.format(cinless_rows))
+
 cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
-rows_to_skip.update(set(cins[cins.duplicated(subset = 'cin')].index))
-print('dupes:', cins[cins.duplicated(subset = 'cin')].index)
-print(rows_to_skip)
+duplicate_rows = set(cins[cins.duplicated(subset = 'cin')].index)
+
+print('There are {} duplicate rows.'.format(len(duplicate_rows)))
+print('Duplicate rows are: {}.'.format(duplicate_rows))
+
+rows_to_skip = cinless_rows | duplicate_rows
+
 del cins
 
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
