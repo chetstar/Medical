@@ -62,7 +62,8 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
 
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
-
+        
+        df = df.drop_duplicates(subset = 'cin')
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
