@@ -18,7 +18,7 @@ column_names, column_specifications = zip(*column_info)
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
 
-cins = pd.read_fwf(config.medical_file, colspecs = [(209,218)], colnames = ['cin'])
+cins = pd.read_fwf(config.medical_file, colspecs = [(209,218)], names = ['cin'])
 rows_to_skip = pd.isnull(cins).any(axis=1).nonzero()[0]
 del cins
 
