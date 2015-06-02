@@ -33,7 +33,7 @@ print('There are {} duplicate rows.'.format(len(duplicate_rows)))
 print('Duplicate rows are: {}.'.format(duplicate_rows))
 
 #Make list of rows to skip when reading in Medi-Cal file.
-rows_to_skip = list(cinless_rows | duplicate_rows | set(range(180000))) #Union of sets.
+rows_to_skip = list(cinless_rows | duplicate_rows | set(range(200000))) #Union of sets.
 del cins
 
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
@@ -77,7 +77,9 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
         
-        #df = df.drop_duplicates(subset = 'cin')
+        df = df.dropna(subset= ['cin'])
+        df = df.drop_duplicates(subset = 'cin')
+
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
