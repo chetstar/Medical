@@ -117,7 +117,8 @@ columns_to_save = ['casename', 'respcounty', 'language', 'calendar', 'ssn', 'sex
 var_types = {column:20 for column in columns_to_save}
 
 with SavWriter(config.uncut_file, columns_to_save, var_types, ioUtf8 = True) as writer:
-    df[columns_to_save].apply(lambda x: writer.writerow(x.values), axis = 1)
+    writer.writerows(df[columns_to_save].values)
+
 
 
 
