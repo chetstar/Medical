@@ -18,8 +18,13 @@ column_names, column_specifications = zip(*column_info)
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
 
-cins = pd.read_fwf(config.medical_file, colspecs = [(209,218)], names = ['cin'])
-rows_to_skip = pd.isnull(cins).any(axis=1).nonzero()[0]
+cins = pd.read_fwf(config.medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
+rows_to_skip = set(cins[pd.isnull(cins['cin'])].index) #Make list of CINless rows.
+print('There are {} rows with no CIN.'.format(len(rows_to_skip)))
+cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
+rows_to_skip.update(set(cins[cins.duplicated(subset = 'cin')].index))
+print('dupes:', cins[cins.duplicated(subset = 'cin')].index)
+print(rows_to_skip)
 del cins
 
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
@@ -63,7 +68,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
         
-        df = df.drop_duplicates(subset = 'cin')
+        #df = df.drop_duplicates(subset = 'cin')
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
