@@ -18,27 +18,37 @@ column_names, column_specifications = zip(*column_info)
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
 
-chunked_data_iterator = pd.read_fwf(config.medical_file, 
+cins = pd.read_fwf(config.medical_file, colspecs = [(209,218)], colnames = ['cin'])
+rows_to_skip = pd.isnull(cins).any(axis=1).nonzero()[0]
+del cins
+
+#Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
+chunked_data_iterator = pd.read_fwf(config.medical_file,
+                                    skiprows = rows_to_skip,
                                     colspecs = column_specifications, 
                                     names = column_names, 
                                     converters = converters, 
                                     iterator = True,
                                     chunksize = 10000)
 
+#List of base names, or stubs, to use when doing wide to long by month.
 stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitystatussp0',
          'socamount', 'medicarestatus', 'hcpstatus', 'hcpcode', 'hcplantext', 'ohc',
          'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 'aidcodesp2', 'respcountysp2',
          'eligibilitystatussp2', 'aidcodesp3', 'respcountysp3', 'eligibilitystatussp3']
 
+#Bring in file that matches aidcodes with other attributes: foster, disabled, full, ffp.
 with open(config.aidcodes_file) as f:
     aidcodesshort = pd.read_csv(f, header = 0)
+
+#Aidcodes that match to their respective categories.
+ssicodes = ['10','20','60']
+ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
+ihsscodes = ['2L','2M','2N']
 
 eligibilities = ['eligibilitystatussp0', 'eligibilitystatussp1', 
                  'eligibilitystatussp3', 'eligibilitystatussp3']
 aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
-ssicodes = ['10','20','60']
-ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
-ihsscodes = ['2L','2M','2N']
 
 #with open('columns_to_save.json') as f:
 #    columns_to_save = json.load(f)
@@ -141,9 +151,10 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         write_file_start = datetime.now()
         print('There are {} rows in the dataframe prior to writing'.format(len(df)))
         #df.apply(lambda x: writer.writerow(x[columns_to_save].values), axis = 1)
-        writer.writerows(df['columns_to_save'].values)
+        writer.writerows(df[columns_to_save].values)
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
 
         print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
 
 print('Program finished in: ', str(datetime.now() - start_time))
+
