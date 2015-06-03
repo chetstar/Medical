@@ -33,7 +33,7 @@ print('There are {} duplicate rows.'.format(len(duplicate_rows)))
 print('Duplicate rows are: {}.'.format(duplicate_rows))
 
 #Make list of rows to skip when reading in Medi-Cal file.
-rows_to_skip = list(cinless_rows | duplicate_rows | set(range(200000))) #Union of sets.
+rows_to_skip = list(cinless_rows | duplicate_rows) #Union of sets.
 del cins
 
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
@@ -64,14 +64,14 @@ eligibilities = ['eligibilitystatussp0', 'eligibilitystatussp1',
                  'eligibilitystatussp3', 'eligibilitystatussp3']
 aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 
-#with open('columns_to_save.json') as f:
-#    columns_to_save = json.load(f)
-#columns_to_save = [x.lower() for x in columns_to_save]#fix the file so this goes away.
-columns_to_save = ['aidcodesp0', 'respcountysp0', 'eligibilitystatussp0']
+with open('explode_save.json') as f:
+    save_info = json.load(f)
 
-variable_types = {x:20 for x in columns_to_save}
+colnames, coltypes = zip(*save_info)
+variable_types = {colname:coltype for (colname,coltype) in save_info}
+colnames = list(colnames)
 
-with SavWriter(config.nodupe_file, columns_to_save, variable_types, 
+with SavWriter(config.nodupe_file, colnames, variable_types, 
                ioUtf8 = True) as writer:
 
     for i,df in enumerate(chunked_data_iterator):
@@ -107,6 +107,7 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         df['calendar'] = pd.to_datetime(df['eligmonth']+df['eligyear'], format='%m%Y')
                 
         mcrank_start = datetime.now()
+
 
         #Wide to long by aidcode
         aidcode_stubs = ['aidcode','respcounty','eligibilitystatus']
@@ -164,11 +165,25 @@ with SavWriter(config.nodupe_file, columns_to_save, variable_types,
         df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
 
+        #Merge in aidcode based info.
+        aidcodesshort.rename(columns={'aidcode':'aidcodem'}, inplace = True)
+        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp0', 
+                      right_on = 'aidcodem', suffixes = ('','sp0'))
+        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp1', 
+                      right_on = 'aidcodem', suffixes = ('','sp1'))
+        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp2', 
+                      right_on = 'aidcodem', suffixes = ('','sp2'))
+        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp3', 
+                      right_on = 'aidcodem', suffixes = ('','sp3'))
+
+        df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 
+                                  'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
+                                  'eligyear':'eligibility_year', 'aidcodesp0':'aidcode'})
+
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
         print('There are {} rows in the dataframe prior to writing'.format(len(df)))
-        #df.apply(lambda x: writer.writerow(x[columns_to_save].values), axis = 1)
-        writer.writerows(df[columns_to_save].values)
+        writer.writerows(df[colnames].values)
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
 
         print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
