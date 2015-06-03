@@ -166,14 +166,14 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
 
         #Merge in aidcode based info.
-        aidcodesshort.rename(columns={'aidcode':'aidcodem'}, inplace = True)
-        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp0', 
+        codes = aidcodesshort.rename(columns={'aidcode':'aidcodem'})
+        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp0', 
                       right_on = 'aidcodem', suffixes = ('','sp0'))
-        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp1', 
+        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp1', 
                       right_on = 'aidcodem', suffixes = ('','sp1'))
-        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp2', 
+        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp2', 
                       right_on = 'aidcodem', suffixes = ('','sp2'))
-        df = pd.merge(df, aidcodesshort, how = 'left', left_on = 'aidcodesp3', 
+        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp3', 
                       right_on = 'aidcodem', suffixes = ('','sp3'))
 
         df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 
