@@ -18,27 +18,8 @@ column_names, column_specifications = zip(*column_info)
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
 
-#Bring in CINs and eligibility status for the entire file to identify CINless and duplicate rows.
-cins = pd.read_fwf(config.medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
-
-#Make set of CINless rows.
-cinless_rows = set(cins[pd.isnull(cins['cin'])].index) 
-print('There are {} rows with no CIN.'.format(len(cinless_rows)))
-print('CINless rows are: {}.'.format(cinless_rows))
-
-#Make set of duplicate rows to drop.  This orders by eligibility so we only keep the best row.
-cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
-duplicate_rows = set(cins[cins.duplicated(subset = 'cin')].index)
-print('There are {} duplicate rows.'.format(len(duplicate_rows)))
-print('Duplicate rows are: {}.'.format(duplicate_rows))
-
-#Make list of rows to skip when reading in Medi-Cal file.
-rows_to_skip = list(cinless_rows | duplicate_rows) #Union of sets.
-del cins
-
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
 chunked_data_iterator = pd.read_fwf(config.medical_file,
-                                    skiprows = rows_to_skip,
                                     colspecs = column_specifications, 
                                     names = column_names, 
                                     converters = converters, 
@@ -107,7 +88,6 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         df['calendar'] = pd.to_datetime(df['eligmonth']+df['eligyear'], format='%m%Y')
                 
         mcrank_start = datetime.now()
-
 
         #Wide to long by aidcode
         aidcode_stubs = ['aidcode','respcounty','eligibilitystatus']
