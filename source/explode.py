@@ -36,6 +36,10 @@ stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitysta
 with open(config.aidcodes_file) as f:
     aidcodesshort = pd.read_csv(f, header = 0)
 
+codes = aidcodesshort.copy()
+codes = codes.rename(columns = {'aidcode': 'aidcodem'})
+codes = codes.drop(['fosterx','disabledx'], axis = 1)
+
 #Aidcodes that match to their respective categories.
 ssicodes = ['10','20','60']
 ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
@@ -146,7 +150,6 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
 
         #Merge in aidcode based info.
-        codes = aidcodesshort.rename(columns={'aidcode':'aidcodem'})
         df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp0', 
                       right_on = 'aidcodem', suffixes = ('','sp0'))
         df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp1', 
@@ -159,6 +162,9 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 
                                   'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
                                   'eligyear':'eligibility_year', 'aidcodesp0':'aidcode'})
+
+        string_cols = [x for x in variable_types if variable_types[x] > 0]
+        df[string_cols].fillna('')
 
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
