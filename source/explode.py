@@ -9,7 +9,7 @@ import config
 start_time = datetime.now()
 
 #Load column_info.json into column_info.  This is a list of lists.                                 
-with open('explode_columns.json') as f:
+with open(config.explode_load_info) as f:
     column_info = json.load(f)
 
 #column_names and column_specifications are used by pandas.read_fwf to read in the Medi-Cal file. 
@@ -50,7 +50,7 @@ eligibilities = ['eligibilitystatussp0', 'eligibilitystatussp1',
 aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 
 #Create SavWriter settings.
-with open('explode_save.json') as f:
+with open(config.explode_save_info) as f:
     save_info = json.load(f)
 
 colnames, coltypes = zip(*save_info)
@@ -66,13 +66,7 @@ column_widths = {x: None if x not in string_cols else variable_types[x]+1 for x 
 #Set measure level to nominal for string columns and to scale for numerical columns.
 measure_levels = {x:'nominal' if x in string_cols else 'scale' for x in colnames}
 
-def set_retromc(df)
-    """If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1."""
-    df['retromc'] = df['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})
-    return df
-
-with SavWriter(config.nodupe_file, colnames, variable_types, 
-               ioUtf8 = True) as writer:
+with SavWriter(config.explode_file, colnames, variable_types) as writer:
 
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()

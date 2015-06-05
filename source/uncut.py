@@ -43,11 +43,11 @@ region_map = {'ALAMEDA' :'1. North', 'ALBANY' :'1. North', 'BERKELEY' :'1. North
                       'NEWARK' :'3. South', 'UNKNOWN' :'6. Unknown', None: '6. Unknown'}
 
 #Load column_info.json into column_info.  This is a list of lists.                                 
-with open('uncut_columns.json') as f:
+with open(config.uncut_load_info) as f:
     column_info = json.load(f)
 
 #Bring in city_names_list from city_names.json
-with open('city_names.json') as f:
+with open(config.city_names) as f:
     city_name_list = json.load(f)
 
 #column_names and column_specifications are used by pandas.read_fwf to read in the Medi-Cal file. 
