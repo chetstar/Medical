@@ -66,6 +66,11 @@ column_widths = {x: None if x not in string_cols else variable_types[x]+1 for x 
 #Set measure level to nominal for string columns and to scale for numerical columns.
 measure_levels = {x:'nominal' if x in string_cols else 'scale' for x in colnames}
 
+def set_retromc(df)
+    """If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1."""
+    df['retromc'] = df['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})
+    return df
+
 with SavWriter(config.nodupe_file, colnames, variable_types, 
                ioUtf8 = True) as writer:
 
@@ -187,6 +192,7 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         print('Write_file finished in: ', str(datetime.now()-write_file_start))
 
         print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
+
 
 print('Program finished in: ', str(datetime.now() - start_time))
 
