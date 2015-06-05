@@ -42,82 +42,102 @@ region_map = {'ALAMEDA' :'1. North', 'ALBANY' :'1. North', 'BERKELEY' :'1. North
                       'DUBLIN' :'4. East', 'UNION CITY' :'3. South', 'FREMONT' :'3. South', 
                       'NEWARK' :'3. South', 'UNKNOWN' :'6. Unknown', None: '6. Unknown'}
 
-#Load column_info.json into column_info.  This is a list of lists.                                 
-with open(config.uncut_load_info) as f:
-    column_info = json.load(f)
-
 #Bring in city_names_list from city_names.json
 with open(config.city_names) as f:
     city_name_list = json.load(f)
 
-#column_names and column_specifications are used by pandas.read_fwf to read in the Medi-Cal file. 
-column_names, column_specifications = zip(*column_info)
+def drop_summary_row():
+    #Code to delete the last row if its a summary row.
+    df = df.drop(df.index[-1])
 
-#All columns should be brought in as strings.
-converters = {name:str for name in column_names}
+def drop_cinless_rows():
+    #Drop all rows without a CIN.
+    df.dropna(subset = ['cin'], inplace = True)
+    print('cin-less rows dropped at: {}'.format(datetime.datetime.now()))
 
-df = pd.read_fwf(config.medical_file,
-                 colspecs = column_specifications,
-                 header = None,
-                 names = column_names, 
-                 converters = converters )
-
-#Code to delete the last row if its a summary row.
-df = df.drop(df.index[-1])
-
-#Drop all rows without a CIN.
-df.dropna(subset = ['cin'], inplace = True)
-print('cin-less rows dropped at: {}'.format(datetime.datetime.now()))
-
-#Remove duplicate rows keeping the row with the best eligibilityStatus. 
-df.sort(['cin','eligibilitystatus'], inplace = True)
-df.drop_duplicates(subset = 'cin', inplace = True)
-print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
+def drop_duplicate_rows():
+    #Remove duplicate rows keeping the row with the best eligibilityStatus. 
+    df.sort(['cin','eligibilitystatus'], inplace = True)
+    df.drop_duplicates(subset = 'cin', inplace = True)
+    print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
 
 #Wrap extractOne so that we can use it with apply and get back only a city name.
 def extractOne_wrapper(city, city_name_list):
     """Returns the first item of the tuple retruned by fuzzywuzzy.process.extractOne"""
     return process.extractOne(city, city_name_list)[0]
 
-#Fix mispelt city names.
-df['city'] = df['city'].replace(city_map)
-if (-df['city'].isin(city_name_list)).any(): #If ANY city is NOT in the city_name_list
-    df['city'] = df['city'].apply(
-        lambda x: process.extractOne(x, city_name_list)[0])
-print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
+def fix_city_names():
+    #Fix mispelt city names.
+    df['city'] = df['city'].replace(city_map)
+    if (-df['city'].isin(city_name_list)).any(): #If ANY city is NOT in the city_name_list
+        df['city'] = df['city'].apply(
+            lambda x: process.extractOne(x, city_name_list)[0])
+    print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
 
-#create calendar and bday columns.
-df['calendar'] = pd.to_datetime(df['eligyear'] + df['eligmonth'], format = '%Y%m')
-df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format = '%Y%m%d')
+def create_calendar_column():
+    #create calendar column.
+    df['calendar'] = pd.to_datetime(df['eligyear'] + df['eligmonth'], format = '%Y%m')
 
-#create hcplantext column and populate with hcpcode data.
-df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
-#create language column and populate with the codes from lang.
-df['language'] = df['lang'].map(language_map)
-#create ethnicity column and populate with codes from race.
-df['ethnicity'] = df['race'].map(ethnicity_map)
-#create region and populate by matching citynames to the region they're in.
-df['region'] = df['city'].map(region_map)
+def create_bday_column():
+    df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format = '%Y%m%d')
 
-#If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
-#HCplanText to "z No Plan"
-df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","s0","s9"]),'hcplantext'] = "z No Plan"
+def create_hcplantext_column():
+    #create hcplantext column and populate with hcpcode data.
+    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
 
-#These are the columns that need to be saved into the .sav file.
-columns_to_save = ['casename', 'respcounty', 'language', 'calendar', 'ssn', 'sex', 'ethnicity',
-                   'street', 'state', 'zip', 'cin', 'bday', 'fname', 'lname', 'suffix',
-                   'middleinitial', 'city', 'aidcode', 'ohc', 'socamount', 'eligibilitystatus',
-                   'hcplantext', 'rescounty', 'govt', 'countycasecode', 'countyaidcode', 
-                   'countycaseid', 'medicarestatus', 'hic', 'carriercode', 
-                   'federalcontractnumber', 'planid', 'typeid', 'hcpstatus', 'hcpcode', 
-                   'region', 'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 
-                   'aidcodesp2', 'respcountysp2', 'eligibilitystatussp2', 'aidcodesp3',
-                   'respcountysp3', 'eligibilitystatussp3']
+def create_language_column():
+    #create language column and populate with the codes from lang.
+    df['language'] = df['lang'].map(language_map)
 
-var_types = {column:20 for column in columns_to_save}
+def create_ethnicity_column():
+    #create ethnicity column and populate with codes from race.
+    df['ethnicity'] = df['race'].map(ethnicity_map)
 
-with SavWriter(config.uncut_file, columns_to_save, var_types, ioUtf8 = True) as writer:
-    writer.writerows(df[columns_to_save].values)
+def create_region_column():
+    #create region and populate by matching citynames to the region they're in.
+    df['region'] = df['city'].map(region_map)
+
+def fix_hcpstatus():
+    #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
+    #HCplanText to "z No Plan"
+    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","s0","s9"]),'hcplantext'] = "z No Plan"
+
+if __name__ == '__main__':
+
+    #Load column_info.json into column_info.  This is a list of lists.
+    with open(config.uncut_load_info) as f:
+        column_info = json.load(f)
+
+    #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
+    column_names, column_specifications = zip(*column_info)
+
+    #All columns should be brought in as strings.
+    converters = {name:str for name in column_names}
+
+    #These are the columns that need to be saved into the .sav file.
+    columns_to_save = ['casename', 'respcounty', 'language', 'calendar', 'ssn', 'sex', 'ethnicity',
+                       'street', 'state', 'zip', 'cin', 'bday', 'fname', 'lname', 'suffix',
+                       'middleinitial', 'city', 'aidcode', 'ohc', 'socamount', 'eligibilitystatus',
+                       'hcplantext', 'rescounty', 'govt', 'countycasecode', 'countyaidcode', 
+                       'countycaseid', 'medicarestatus', 'hic', 'carriercode', 
+                       'federalcontractnumber', 'planid', 'typeid', 'hcpstatus', 'hcpcode', 
+                       'region', 'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 
+                       'aidcodesp2', 'respcountysp2', 'eligibilitystatussp2', 'aidcodesp3',
+                       'respcountysp3', 'eligibilitystatussp3']
+
+    var_types = {column:20 for column in columns_to_save}
+
+    df = pd.read_fwf(config.medical_file,
+                     colspecs = column_specifications,
+                     header = None,
+                     names = column_names, 
+                     converters = converters )
+
+
+
+
+    with SavWriter(config.uncut_file, columns_to_save, var_types) as writer:
+        writer.writerows(df[columns_to_save].values)
 
 
 
