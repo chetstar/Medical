@@ -56,6 +56,9 @@ colnames, coltypes = zip(*save_info)
 variable_types = {colname:coltype for (colname,coltype) in save_info}
 colnames = list(colnames)
 
+string_cols = [x for x in variable_types if variable_types[x] ]
+alignments = {x:None for x in colnames}
+
 with SavWriter(config.nodupe_file, colnames, variable_types, 
                ioUtf8 = True) as writer:
 
@@ -163,8 +166,7 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
                                   'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
                                   'eligyear':'eligibility_year', 'aidcodesp0':'aidcode'})
 
-        string_cols = [x for x in variable_types if variable_types[x] > 0]
-        df[string_cols].fillna('')
+        df = df[string_cols].fillna('')
 
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
