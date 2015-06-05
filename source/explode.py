@@ -57,9 +57,14 @@ colnames, coltypes = zip(*save_info)
 variable_types = {colname:coltype for (colname,coltype) in save_info}
 colnames = list(colnames)
 
+#Create list columns that are composed of strings.
 string_cols = [x for x in variable_types if variable_types[x] ]
+#Set alignments for string columns to left and for numerical columns to right.
 alignments = {x:'left' if x in string_cols else 'right' for x in colnames}
+#Set column_width to None for numerical columns and to length + 1 for string columns.
 column_widths = {x: None if x not in string_cols else variable_types[x]+1 for x in colnames}
+#Set measure level to nominal for string columns and to scale for numerical columns.
+measure_levels = {x:'nominal' if x in string_cols else 'scale' for x in colnames}
 
 with SavWriter(config.nodupe_file, colnames, variable_types, 
                ioUtf8 = True) as writer:
