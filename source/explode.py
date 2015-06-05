@@ -49,6 +49,7 @@ eligibilities = ['eligibilitystatussp0', 'eligibilitystatussp1',
                  'eligibilitystatussp3', 'eligibilitystatussp3']
 aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 
+#Create SavWriter settings.
 with open('explode_save.json') as f:
     save_info = json.load(f)
 
@@ -57,7 +58,8 @@ variable_types = {colname:coltype for (colname,coltype) in save_info}
 colnames = list(colnames)
 
 string_cols = [x for x in variable_types if variable_types[x] ]
-alignments = {x:None for x in colnames}
+alignments = {x:'left' if x in string_cols else 'right' for x in colnames}
+column_widths = {x: None if x not in string_cols else variable_types[x]+1 for x in colnames}
 
 with SavWriter(config.nodupe_file, colnames, variable_types, 
                ioUtf8 = True) as writer:
@@ -82,7 +84,6 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         print('Wide to long finished in: ', str(datetime.now()-wide_start))
         print('There are {} rows after wide_to_long by month'.format(len(df)))
         print('df.columns after wide to long: ', df.columns)
-        print('df.index after wide to long(and after reset index): ', df.index)
 
         #Drop all rows for months with no eligibility.
         elig_drop_start = datetime.now()
@@ -118,7 +119,7 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         disabled = dw['disabledx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
         foster = dw['fosterx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
 
-        #Create Medi-Cal ranks.
+        #Create Medi-Cal ranks. Done in this order so worse ranks don't overwrite better ones.
         dw['mcrank'] = ((dw['aidcode'].notnull()) & (dw['ffp'] >= 1)).map({True:13})
         dw['mcrank'] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
         dw['mcrank'] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
@@ -132,11 +133,11 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         dw['primary_aid_code'] = dw['aidcode']
         dw['eligibility_county_code'] = dw['respcounty']
         
-        #Create disabled and foster columns
+        #Create disabled and foster columns.
         dw['disabled'] = (elig & disabled).map({True:1})
         dw['foster'] = (elig & foster).map({True:1})
 
-        #Merge the columns we want to keep from the wide_by_aidcode dataframe (dw) back into df.
+        #Merge the columns we want to keep from the long_by_aidcode dataframe (dw) back into df.
         dw = dw.set_index('id')
         cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank', 'disabled',
                          'foster']
@@ -145,10 +146,13 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
 
         #If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1. 
         df['retromc'] = df['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})
-        #Create ssi column. Populate with '1' if any aidcode in that row is in ssicodes.
+        #If any aidcode in row is in ssicodes set ssi to '1'
         df['ssi'] = df[aidcodes].isin(ssicodes).any(axis = 1).map({True:'1'})
+        #If any aidcode in row is in ccscodes set ccsaidcode to '1'.
         df['ccsaidcode'] = df[aidcodes].isin(ccscodes).any(axis = 1).map({True:'1'})
+        #If any aidcode in row is in ihsscodes set ihssaidcode to '1'.
         df['ihssaidcode'] = df[aidcodes].isin(ihsscodes).any(axis = 1).map({True:'1'})
+        #If the last character of any eligibility status in row is 1, set socmc to '1'.
         df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
                       eq(1,axis=0).any(axis = 1).map({True:'1'})
 
@@ -162,11 +166,14 @@ with SavWriter(config.nodupe_file, colnames, variable_types,
         df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp3', 
                       right_on = 'aidcodem', suffixes = ('','sp3'))
 
+        #A few columns need to be renamed for output.
         df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 
                                   'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
                                   'eligyear':'eligibility_year', 'aidcodesp0':'aidcode'})
 
-        df = df[string_cols].fillna('')
+        #SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that 
+        #isn't the desired output, replace each NaN in a string column with an empty string.
+        df[string_cols] = df[string_cols].fillna('')
 
         #Write our columns out as an SPSS .sav file.
         write_file_start = datetime.now()
