@@ -18,11 +18,10 @@ column_names, column_specifications = zip(*column_info)
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
 
-dedupe_data = pd.read_fwf(config.medical_file, 
-                          colspecs = [[],[]], 
-                          names = ['cin', 'eligibilitystatussp0'],
-                          converters = {'cin':str, 'eligibilitystatussp0':str})
-
+#Bring in CINs and eligibility status for the entire file to identify duplicate rows.
+cins = pd.read_fwf(config.medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
+cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
+dupemask = ~cins.duplicated(subset = ['cin'])
 
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
 chunked_data_iterator = pd.read_fwf(config.medical_file,
@@ -76,9 +75,11 @@ with SavWriter(config.explode_file, colnames, variable_types) as writer:
 
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
-        
+        chunksize = 10000
+        df.index = range(i*chunksize, i*chunksize + len(df.index))
+        #df.reindex(index=dupemask.index)
+        df = df[dupemask]
         df = df.dropna(subset= ['cin'])
-        df = df.drop_duplicates(subset = 'cin')
 
         #medsmonth is the most recent month with eligibility data in the file..
         medsmonth = df['eligmonth'][0] + df['eligyear'][0]
