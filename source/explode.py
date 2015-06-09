@@ -8,12 +8,9 @@ import config
 
 start_time = datetime.now()
 
-#Load column_info.json into column_info.  This is a list of lists.                                 
-with open(config.explode_load_info) as f:
-    column_info = json.load(f)
-
 #column_names and column_specifications are used by pandas.read_fwf to read in the Medi-Cal file. 
-column_names, column_specifications = zip(*column_info)
+with open(config.explode_load_info) as f:
+    column_names, column_specifications = zip(*json.load(f))
 
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
@@ -24,12 +21,13 @@ cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last
 dupemask = ~cins.duplicated(subset = ['cin'])
 
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
+chunksize = 10000
 chunked_data_iterator = pd.read_fwf(config.medical_file,
                                     colspecs = column_specifications, 
                                     names = column_names, 
                                     converters = converters, 
                                     iterator = True,
-                                    chunksize = 10000)
+                                    chunksize = chunksize)
 
 #List of base names, or stubs, to use when doing wide to long by month.
 stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitystatussp0',
@@ -82,7 +80,7 @@ with SavWriter(config.explode_file, colnames, variable_types) as writer:
         df = df.dropna(subset= ['cin'])
 
         #medsmonth is the most recent month with eligibility data in the file..
-        medsmonth = df['eligmonth'].head(1)[0] + df['eligyear'].head(1)[0]
+        medsmonth = df['eligmonth'][df.index[0]] + df['eligyear'][df.index[0]]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
         df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
         df = df.drop(['month','day','year'], axis = 1)
