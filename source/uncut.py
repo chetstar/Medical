@@ -70,7 +70,6 @@ def fix_city_names():
     print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
 
 def create_calendar_column():
-    #create calendar column.
     df['calendar'] = pd.to_datetime(df['eligyear'] + df['eligmonth'], format = '%Y%m')
 
 def create_bday_column():
@@ -100,28 +99,12 @@ def fix_hcpstatus():
 
 if __name__ == '__main__':
 
-    #Load column_info.json into column_info.  This is a list of lists.
-    with open(config.uncut_load_info) as f:
-        column_info = json.load(f)
-
     #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
-    column_names, column_specifications = zip(*column_info)
+    with open(config.uncut_load_info) as f:
+        column_names, column_specifications = zip(*json.load(f))
 
     #All columns should be brought in as strings.
     converters = {name:str for name in column_names}
-
-    #These are the columns that need to be saved into the .sav file.
-    columns_to_save = ['casename', 'respcounty', 'language', 'calendar', 'ssn', 'sex', 'ethnicity',
-                       'street', 'state', 'zip', 'cin', 'bday', 'fname', 'lname', 'suffix',
-                       'middleinitial', 'city', 'aidcode', 'ohc', 'socamount', 'eligibilitystatus',
-                       'hcplantext', 'rescounty', 'govt', 'countycasecode', 'countyaidcode', 
-                       'countycaseid', 'medicarestatus', 'hic', 'carriercode', 
-                       'federalcontractnumber', 'planid', 'typeid', 'hcpstatus', 'hcpcode', 
-                       'region', 'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 
-                       'aidcodesp2', 'respcountysp2', 'eligibilitystatussp2', 'aidcodesp3',
-                       'respcountysp3', 'eligibilitystatussp3']
-
-    var_types = {column:20 for column in columns_to_save}
 
     df = pd.read_fwf(config.medical_file,
                      colspecs = column_specifications,
@@ -129,6 +112,7 @@ if __name__ == '__main__':
                      names = column_names, 
                      converters = converters )
 
+    #Proccess Medi-Cal data.
     drop_summary_row() 
     drop_cinless_rows() 
     drop_duplicate_rows() 
@@ -141,8 +125,14 @@ if __name__ == '__main__':
     create_region_column()
     fix_hcpstatus()
 
-    with SavWriter(config.uncut_file, columns_to_save, var_types) as writer:
-        writer.writerows(df[columns_to_save].values)
+    with open('uncut_columns_save_info.json') as f:
+        save_info = json.load(f)
+
+    with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
+                   measureLevels = save_info['measure_levels'],
+                   alignments = save_info['alignment'],
+                   columnWidths = save_info['column_width']) as writer:
+        writer.writerows(df[save_info['column_names']].values)
 
         
 

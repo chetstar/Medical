@@ -54,9 +54,8 @@ aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 
 #Create SavWriter settings.
 with open(config.explode_save_info) as f:
-    save_info = json.load(f)
+    colnames, coltypes = zip(*json.load(f))
 
-colnames, coltypes = zip(*save_info)
 variable_types = {colname:coltype for (colname,coltype) in save_info}
 colnames = list(colnames)
 
@@ -73,13 +72,13 @@ with SavWriter(config.explode_file, colnames, variable_types) as writer:
 
     for i,df in enumerate(chunked_data_iterator):
         chunkstart = datetime.now()
-        chunksize = 10000
+
+        #Drop duplicate rows and rows without CINs.
         df.index = range(i*chunksize, i*chunksize + len(df.index))
-        #df.reindex(index=dupemask.index)
         df = df[dupemask]
         df = df.dropna(subset= ['cin'])
 
-        #medsmonth is the most recent month with eligibility data in the file..
+        #Medsmonth is the most recent month with eligibility data in the file.
         medsmonth = df['eligmonth'][df.index[0]] + df['eligyear'][df.index[0]]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
         df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
