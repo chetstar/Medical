@@ -82,7 +82,7 @@ with SavWriter(config.explode_file, colnames, variable_types) as writer:
         df = df.dropna(subset= ['cin'])
 
         #medsmonth is the most recent month with eligibility data in the file..
-        medsmonth = df['eligmonth'][0] + df['eligyear'][0]
+        medsmonth = df['eligmonth'].head(1)[0] + df['eligyear'].head(1)[0]
         df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
         df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
         df = df.drop(['month','day','year'], axis = 1)
