@@ -48,7 +48,7 @@ with open(config.city_names) as f:
 
 def drop_summary_row():
     #Code to delete the last row if its a summary row.
-    df = df.drop(df.index[-1])
+    df.drop(df.index[-1], inplace = True)
 
 def drop_cinless_rows():
     #Drop all rows without a CIN.
@@ -60,11 +60,6 @@ def drop_duplicate_rows():
     df.sort(['cin','eligibilitystatus'], inplace = True)
     df.drop_duplicates(subset = 'cin', inplace = True)
     print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
-
-#Wrap extractOne so that we can use it with apply and get back only a city name.
-def extractOne_wrapper(city, city_name_list):
-    """Returns the first item of the tuple retruned by fuzzywuzzy.process.extractOne"""
-    return process.extractOne(city, city_name_list)[0]
 
 def fix_city_names():
     #Fix mispelt city names.
@@ -102,6 +97,7 @@ def fix_hcpstatus():
     #HCplanText to "z No Plan"
     df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","s0","s9"]),'hcplantext'] = "z No Plan"
 
+
 if __name__ == '__main__':
 
     #Load column_info.json into column_info.  This is a list of lists.
@@ -133,13 +129,22 @@ if __name__ == '__main__':
                      names = column_names, 
                      converters = converters )
 
-
-
+    drop_summary_row() 
+    drop_cinless_rows() 
+    drop_duplicate_rows() 
+    fix_city_names() 
+    create_calendar_column() 
+    create_bday_column() 
+    create_hcplantext_column() 
+    create_language_column()
+    create_ethnicity_column()
+    create_region_column()
+    fix_hcpstatus()
 
     with SavWriter(config.uncut_file, columns_to_save, var_types) as writer:
         writer.writerows(df[columns_to_save].values)
 
-
+        
 
 
 

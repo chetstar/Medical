@@ -18,6 +18,12 @@ column_names, column_specifications = zip(*column_info)
 #All columns should be brought in as strings.
 converters = {name:str for name in column_names}
 
+dedupe_data = pd.read_fwf(config.medical_file, 
+                          colspecs = [[],[]], 
+                          names = ['cin', 'eligibilitystatussp0'],
+                          converters = {'cin':str, 'eligibilitystatussp0':str})
+
+
 #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
 chunked_data_iterator = pd.read_fwf(config.medical_file,
                                     colspecs = column_specifications, 
