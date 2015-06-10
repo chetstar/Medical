@@ -125,8 +125,8 @@ if __name__ == '__main__':
     create_region_column()
     fix_hcpstatus()
 
-    with open('uncut_columns_save_info.json') as f:
-        save_info = json.load(f)
+    with open('uncut_columns_save_info.json') as fp:
+        save_info = json.load(fp)
 
     with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],

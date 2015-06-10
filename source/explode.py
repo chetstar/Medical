@@ -54,8 +54,10 @@ aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 
 #Create SavWriter settings.
 with open(config.explode_save_info) as f:
-    colnames, coltypes = zip(*json.load(f))
+    save_info = json.load(f)
 
+
+colnames, coltypes = zip(*save_info)
 variable_types = {colname:coltype for (colname,coltype) in save_info}
 colnames = list(colnames)
 
@@ -181,26 +183,37 @@ def make_retromc_column(df):
     return df
 
 def make_ssi_column(df):
+    #If any aidcode in row is in ssicodes set ssi to '1'
+    df['ssi'] = df[aidcodes].isin(ssicodes).any(axis = 1).map({True:'1'})
+    return df
 
-        #If any aidcode in row is in ssicodes set ssi to '1'
-        df['ssi'] = df[aidcodes].isin(ssicodes).any(axis = 1).map({True:'1'})
-        #If any aidcode in row is in ccscodes set ccsaidcode to '1'.
-        df['ccsaidcode'] = df[aidcodes].isin(ccscodes).any(axis = 1).map({True:'1'})
-        #If any aidcode in row is in ihsscodes set ihssaidcode to '1'.
-        df['ihssaidcode'] = df[aidcodes].isin(ihsscodes).any(axis = 1).map({True:'1'})
-        #If the last character of any eligibility status in row is 1, set socmc to '1'.
-        df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
-                      eq(1,axis=0).any(axis = 1).map({True:'1'})
+def make_ccsaidcode_column(df):
+    #If any aidcode in row is in ccscodes set ccsaidcode to '1'.
+    df['ccsaidcode'] = df[aidcodes].isin(ccscodes).any(axis = 1).map({True:'1'})
+    return df
 
-        #Merge in aidcode based info.
-        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp0', 
-                      right_on = 'aidcodem', suffixes = ('','sp0'))
-        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp1', 
-                      right_on = 'aidcodem', suffixes = ('','sp1'))
-        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp2', 
-                      right_on = 'aidcodem', suffixes = ('','sp2'))
-        df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp3', 
-                      right_on = 'aidcodem', suffixes = ('','sp3'))
+def make_ihssaidcode_column(df):
+    #If any aidcode in row is in ihsscodes set ihssaidcode to '1'.
+    df['ihssaidcode'] = df[aidcodes].isin(ihsscodes).any(axis = 1).map({True:'1'})
+    return df
+
+def make_socmc_column(df):
+    #If the last character of any eligibility status in row is 1, set socmc to '1'.
+    df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
+                  eq(1,axis=0).any(axis = 1).map({True:'1'})
+    return df
+
+def merge_aidcode_info(df, codes):
+    #Merge in aidcode based info.
+    df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp0', 
+                  right_on = 'aidcodem', suffixes = ('','sp0'))
+    df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp1', 
+                  right_on = 'aidcodem', suffixes = ('','sp1'))
+    df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp2', 
+                  right_on = 'aidcodem', suffixes = ('','sp2'))
+    df = pd.merge(df, codes, how = 'left', left_on = 'aidcodesp3', 
+                  right_on = 'aidcodem', suffixes = ('','sp3'))
+    return df
 
 if __name__ == '__main__':
 
