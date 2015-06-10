@@ -14,33 +14,33 @@ hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
 
 #Language codes and their respective languages.
 language_map = {'B': 'Chinese', 'P': 'Portugese', 'A': 'Other Sign', 'D': 'Cambodian', 
-                        '2': 'Cantonese', 'N': 'Russian', None: 'Missing', '1': 'Spanish', 
-                        '3': 'Japanese', 'G': 'Mien', '4': 'Korean', '5': 'Tagalog', 
-                        'C': 'Other Chinese', 'V': 'Vietnamese', '0': 'American Sign', 
-                        '7': 'English', 'S': 'Samoan', 'J': 'Hebrew', 'U': 'Farsi', 
-                        'R': 'Arabic', 'Q': 'Italian', 'M': 'Polish', 'F': 'Llacano', 
-                        '9': 'Missing', '8': 'Missing', 'I': 'Lao', 'H': 'Hmong', '6': 'Other', 
-                        'T': 'Thai', 'K': 'French', 'E': 'Armenian'}
+                '2': 'Cantonese', 'N': 'Russian', None: 'Missing', '1': 'Spanish', 
+                '3': 'Japanese', 'G': 'Mien', '4': 'Korean', '5': 'Tagalog', 
+                'C': 'Other Chinese', 'V': 'Vietnamese', '0': 'American Sign', 
+                '7': 'English', 'S': 'Samoan', 'J': 'Hebrew', 'U': 'Farsi', 
+                'R': 'Arabic', 'Q': 'Italian', 'M': 'Polish', 'F': 'Llacano', 
+                '9': 'Missing', '8': 'Missing', 'I': 'Lao', 'H': 'Hmong', '6': 'Other', 
+                'T': 'Thai', 'K': 'French', 'E': 'Armenian'}
 
 #Ethnicity codes and their respective catagories.
 ethnicity_map = {'A': 'Asian/PI', 'C': 'Asian/PI', '0': 'Unknown', 'H': 'Asian/PI', 
-                         'K': 'Asian/PI', 'J': 'Asian/PI', 'M': 'Asian/PI', 'N': 'Asian/PI', 
-                         'P': 'Asian/PI', 'R': 'Asian/PI', '4': 'Asian/PI', '7': 'Asian/PI', 
-                         'V': 'Asian/PI', '9': 'Unknown', '8': 'Unknown', 'T': 'Asian/PI',
-                         '1': 'Caucasian', '2': 'Latino', '3': 'African American',
-                         '5': 'Native American', 'Z': 'Other', None: 'Unknown'}
+                 'K': 'Asian/PI', 'J': 'Asian/PI', 'M': 'Asian/PI', 'N': 'Asian/PI', 
+                 'P': 'Asian/PI', 'R': 'Asian/PI', '4': 'Asian/PI', '7': 'Asian/PI', 
+                 'V': 'Asian/PI', '9': 'Unknown', '8': 'Unknown', 'T': 'Asian/PI',
+                 '1': 'Caucasian', '2': 'Latino', '3': 'African American',
+                 '5': 'Native American', 'Z': 'Other', None: 'Unknown'}
 
 #Dictionary to set blank, NaN and Transient city values.
 city_map = {'TRANSIENT':'HOMELESS', '':'UNKNOWN', None:'UNKNOWN'}
 
 #Match city names to their respective regions.
 region_map = {'ALAMEDA' :'1. North', 'ALBANY' :'1. North', 'BERKELEY' :'1. North',
-                      'OAKLAND' :'1. North', 'EMERYVILLE' :'1. North', 'PIEDMONT' :'1. North',
-                      'HAYWARD' :'2. Central', 'SAN LEANDRO' :'2. Central', 
-                      'SAN LORENZO' :'2. Central', 'CASTRO VALLEY' :'2. Central',
-                      'PLEASANTON' :'4. East', 'LIVERMORE' :'4. East', 'SUNOL' :'4. East',     
-                      'DUBLIN' :'4. East', 'UNION CITY' :'3. South', 'FREMONT' :'3. South', 
-                      'NEWARK' :'3. South', 'UNKNOWN' :'6. Unknown', None: '6. Unknown'}
+              'OAKLAND' :'1. North', 'EMERYVILLE' :'1. North', 'PIEDMONT' :'1. North',
+              'HAYWARD' :'2. Central', 'SAN LEANDRO' :'2. Central', 
+              'SAN LORENZO' :'2. Central', 'CASTRO VALLEY' :'2. Central',
+              'PLEASANTON' :'4. East', 'LIVERMORE' :'4. East', 'SUNOL' :'4. East',     
+              'DUBLIN' :'4. East', 'UNION CITY' :'3. South', 'FREMONT' :'3. South', 
+              'NEWARK' :'3. South', 'UNKNOWN' :'6. Unknown', None: '6. Unknown'}
 
 #Bring in city_names_list from city_names.json
 with open(config.city_names) as f:
