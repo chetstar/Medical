@@ -23,9 +23,9 @@ def make_duplicates_bitmask(df):
     dropmask = ~(cinless | dupemask) 
     return dropmask
 
-def drop_duplicate_rows(df, chunksize, dupemask):
+def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
     #Drop duplicate rows and rows without CINs.
-    df.index = range(i*chunksize, i*chunksize + len(df.index))
+    df.index = range(chunknum*chunksize, chunknum*chunksize + len(df.index))
     df = df[dupemask]
     return df
 
@@ -221,7 +221,7 @@ if __name__ == '__main__':
         for i,df in enumerate(chunked_data_iterator):
             chunkstart = datetime.now()
 
-            df = drop_duplicate_rows(df, chunksize, dupemask)
+            df = drop_duplicate_rows(df, i, chunksize, dupemask)
             df = make_medsmonth_column(df)
             df = make_bday_column(df)
             df = wide_to_long_by_month(df, stubs)
