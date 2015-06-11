@@ -66,8 +66,6 @@ class TestExplode(unittest.TestCase):
 
         fake_file = pd.DataFrame({'id': [str(x).rjust(3) for x in range(18)]}
         ).to_string(index = False, header = False)
-        
-        print('fake_file: {}'.format(fake_file))
 
         df_iter = pd.read_fwf(StringIO(fake_file), 
                               colspecs = [(0,4)],

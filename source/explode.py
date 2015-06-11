@@ -213,10 +213,13 @@ if __name__ == '__main__':
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
 
+    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6'}
+
     with SavWriter(config.explode_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignments'],
-                   columnWidths = save_info['column_widths']) as writer:
+                   columnWidths = save_info['column_widths'],
+                   formats = formats) as writer:
 
         for i,df in enumerate(chunked_data_iterator):
             chunkstart = datetime.now()
