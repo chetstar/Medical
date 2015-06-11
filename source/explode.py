@@ -6,40 +6,6 @@ from savReaderWriter import SavWriter
 
 import config
 
-start_time = datetime.now()
-
-#column_names and column_specifications are used by pandas.read_fwf to read in the Medi-Cal file. 
-with open(config.explode_load_info) as f:
-    column_info = json.load(f)
-
-column_names, column_specifications = zip(*column_info)
-
-#All columns should be brought in as strings.
-converters = {name:str for name in column_names}
-
-#Bring in CINs and eligibility status for the entire file to identify duplicate rows.
-cins = pd.read_fwf(config.medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
-cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
-dupemask = ~cins.duplicated(subset = ['cin'])
-
-#Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
-chunksize = 10000
-chunked_data_iterator = pd.read_fwf(config.medical_file,
-                                    colspecs = column_specifications, 
-                                    names = column_names, 
-                                    converters = converters, 
-                                    iterator = True,
-                                    chunksize = chunksize)
-
-#List of base names, or stubs, to use when doing wide to long by month.
-stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitystatussp0',
-         'socamount', 'medicarestatus', 'hcpstatus', 'hcpcode', 'hcplantext', 'ohc',
-         'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 'aidcodesp2', 'respcountysp2',
-         'eligibilitystatussp2', 'aidcodesp3', 'respcountysp3', 'eligibilitystatussp3']
-
-#Bring in file that matches aidcodes with other attributes: foster, disabled, full, ffp.
-with open(config.aidcodes_file) as f:
-    aidcode_info = pd.read_csv(f, header = 0)
 
 #Aidcodes that match to their respective categories.
 ssicodes = ['10','20','60']
@@ -102,7 +68,7 @@ def wide_to_long_by_aidcode(df):
     print('There are {} rows after to wide_to_long by aidcode'.format(len(dw)))
     return dw
 
-def make_eligibilit_bitmask(dw):
+def make_eligibility_bitmask(dw):
     elig = dw['eligibilitystatus'].dropna().str[0].astype(int).le(5).reindex(
         index = dw.index, fill_value = False)
     return elig
@@ -189,6 +155,8 @@ def merge_aidcode_info(df, aidcode_info):
                   right_on = 'xaidcode', suffixes = ('','sp2'))
     df = pd.merge(df, aidcode_info, how = 'left', left_on = 'aidcodesp3', 
                   right_on = 'xaidcode', suffixes = ('','sp3'))
+    df = df.rename(columns = {'full':'fullsp0', 'disabledx':'disabledxsp0', 'fosterx':'fosterxsp0',
+                              'ffp':'ffpsp0'})
     return df
 
 def format_string_columns(df):
@@ -198,12 +166,45 @@ def format_string_columns(df):
     return df
 
 def rename_columns_for_saving(df):
-    df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 
+    df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 'fullsp0':'full',
                               'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
-                              'eligyear':'eligibility_year', 'aidcodesp0':'aidcode'})
+                              'eligyear':'eligibility_year', 'aidcodesp0':'aidcode',
+                              'ffpsp0':'ffp',})
     return df
 
 if __name__ == '__main__':
+
+    start_time = datetime.now()
+
+    #column_names and column_specifications are used to read in the Medi-Cal file. 
+    with open(config.explode_load_info) as f:
+        column_names, column_specifications = zip(*json.load(f))
+
+    #Bring in CINs and eligibility status for the entire file to identify duplicate rows.
+    cins = pd.read_fwf(config.medical_file,colspecs = [(209,218),(255,258)],names = ['cin','elig'])
+    cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
+    dupemask = ~cins.duplicated(subset = ['cin'])
+
+    #All columns should be brought in as strings.
+    converters = {name:str for name in column_names}
+    #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
+    chunksize = 10000
+    chunked_data_iterator = pd.read_fwf(config.medical_file,
+                                        colspecs = column_specifications, 
+                                        names = column_names, 
+                                        converters = converters, 
+                                        iterator = True,
+                                        chunksize = chunksize)
+
+    #List of base names, or stubs, to use when doing wide to long by month.
+    stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitystatussp0',
+             'socamount', 'medicarestatus', 'hcpstatus', 'hcpcode', 'hcplantext', 'ohc',
+             'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 'aidcodesp2', 'respcountysp2',
+             'eligibilitystatussp2', 'aidcodesp3', 'respcountysp3', 'eligibilitystatussp3']
+
+    #Bring in file that matches aidcodes with other attributes: foster, disabled, full, ffp.
+    with open(config.aidcodes_file) as f:
+        aidcode_info = pd.read_csv(f, header = 0)
 
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
@@ -222,7 +223,7 @@ if __name__ == '__main__':
             df = wide_to_long_by_month(df, stubs)
             df = drop_ineligible_rows(df)
             df = make_calendar_column(df)
-            df = merge_aidcode_info(df)
+            df = merge_aidcode_info(df, aidcode_info)
 
             dw = wide_to_long_by_aidcode(df)
 
@@ -245,12 +246,15 @@ if __name__ == '__main__':
             df = make_ihssaidcode_column(df)
             df = make_socmc_column(df)
 
+            df = rename_columns_for_saving(df)
+
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()
             print('There are {} rows in the dataframe prior to writing'.format(len(df)))
+            print(df[save_info['column_names']])
             writer.writerows(df[save_info['column_names']].values)
             print('Write_file finished in: ', str(datetime.now()-write_file_start))
             print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
 
-        print('Program finished in: ', str(datetime.now() - start_time))
+    print('Program finished in: ', str(datetime.now() - start_time))
 
