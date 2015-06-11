@@ -45,17 +45,21 @@ class TestExplode(unittest.TestCase):
         actual_result = explode.make_duplicates_bitmask(df).sort_index()
         assert_series_equal(desired_result, actual_result)
         
-        #Deal with multiple NaN Cins.
+        #Handle multiple NaN Cins.
         cins = ['000000000', None, None, None, None, '111111111']
         elig = ['001', '001', '001', '002', '003', '001']
         df = pd.DataFrame({'cin':cins, 'elig':elig})
-        desired_result = pd.Series([True, True, False, False, False, True])
+        desired_result = pd.Series([True, False, False, False, False, True])
         actual_result = explode.make_duplicates_bitmask(df).sort_index()
-        print(actual_result)
         assert_series_equal(desired_result, actual_result)
-
-    
-
+        
+        #Handle Nan eligs
+        cins = ['000000000', '000000000', '111111111', '111111111', '222222222']
+        elig = ['001', None, None, None, '001']
+        df = pd.DataFrame({'cin':cins, 'elig':elig})
+        desired_result = pd.Series([True, False, True, False, True])
+        actual_result = explode.make_duplicates_bitmask(df).sort_index()
+        assert_series_equal(desired_result, actual_result)
 
 if __name__ == '__main__':
     unittest.main()
