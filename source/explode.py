@@ -6,21 +6,27 @@ from savReaderWriter import SavWriter
 
 import config
 
-
 #Aidcodes that match to their respective categories.
 ssicodes = ['10','20','60']
 ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
 ihsscodes = ['2L','2M','2N']
 
+aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
 eligibilities = ['eligibilitystatussp0', 'eligibilitystatussp1', 
                  'eligibilitystatussp3', 'eligibilitystatussp3']
-aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
+
+def make_duplicates_bitmask(df):
+    #Bring in CINs and eligibility status for the entire file to identify duplicate rows.
+    cinless = df['cin'].isnull()
+    df = df.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
+    dupemask = df.duplicated(subset = ['cin'])
+    dropmask = ~(cinless | dupemask) 
+    return dropmask
 
 def drop_duplicate_rows(df, chunksize, dupemask):
     #Drop duplicate rows and rows without CINs.
     df.index = range(i*chunksize, i*chunksize + len(df.index))
     df = df[dupemask]
-    df = df.dropna(subset= ['cin'])
     return df
 
 def make_medsmonth_column(df):
@@ -176,14 +182,12 @@ if __name__ == '__main__':
 
     start_time = datetime.now()
 
+    df = pd.read_fwf(config.medical_file,colspecs = [(209,218),(255,258)],names = ['cin','elig'])
+    dupemask = make_duplicates_bitmask(df)
+
     #column_names and column_specifications are used to read in the Medi-Cal file. 
     with open(config.explode_load_info) as f:
         column_names, column_specifications = zip(*json.load(f))
-
-    #Bring in CINs and eligibility status for the entire file to identify duplicate rows.
-    cins = pd.read_fwf(config.medical_file,colspecs = [(209,218),(255,258)],names = ['cin','elig'])
-    cins = cins.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
-    dupemask = ~cins.duplicated(subset = ['cin'])
 
     #All columns should be brought in as strings.
     converters = {name:str for name in column_names}
@@ -251,7 +255,6 @@ if __name__ == '__main__':
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()
             print('There are {} rows in the dataframe prior to writing'.format(len(df)))
-            print(df[save_info['column_names']])
             writer.writerows(df[save_info['column_names']].values)
             print('Write_file finished in: ', str(datetime.now()-write_file_start))
             print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))

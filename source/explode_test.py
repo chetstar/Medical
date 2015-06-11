@@ -26,6 +26,36 @@ class TestExplode(unittest.TestCase):
 
         assert_series_equal(desired_result, actual_result)
 
+    def test_make_duplicates_bitmask(self):
+        #Must sort_index results because assert_series_equal fails if the orders don't match.
+
+        #Dupe eligibility best shown first.
+        cins = ['000000000', '000000000', '000000000', '111111111']
+        elig = ['001','002','003','001']
+        df = pd.DataFrame({'cin':cins, 'elig':elig})
+        desired_result = pd.Series([True, False, False, True])
+        actual_result = explode.make_duplicates_bitmask(df).sort_index()
+        assert_series_equal(desired_result, actual_result)
+
+        #Dupe eligibility worst shown first.
+        cins = ['000000000', '000000000', '000000000', '111111111']
+        elig = ['003','002','001','001']
+        df = pd.DataFrame({'cin':cins, 'elig':elig})
+        desired_result = pd.Series([False, False, True, True])
+        actual_result = explode.make_duplicates_bitmask(df).sort_index()
+        assert_series_equal(desired_result, actual_result)
+        
+        #Deal with multiple NaN Cins.
+        cins = ['000000000', None, None, None, None, '111111111']
+        elig = ['001', '001', '001', '002', '003', '001']
+        df = pd.DataFrame({'cin':cins, 'elig':elig})
+        desired_result = pd.Series([True, True, False, False, False, True])
+        actual_result = explode.make_duplicates_bitmask(df).sort_index()
+        print(actual_result)
+        assert_series_equal(desired_result, actual_result)
+
+    
+
 
 if __name__ == '__main__':
     unittest.main()
