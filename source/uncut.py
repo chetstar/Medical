@@ -46,56 +46,66 @@ region_map = {'ALAMEDA' :'1. North', 'ALBANY' :'1. North', 'BERKELEY' :'1. North
 with open(config.city_names) as f:
     city_name_list = json.load(f)
 
-def drop_summary_row():
+def drop_summary_row(df):
     #Code to delete the last row if its a summary row.
     df.drop(df.index[-1], inplace = True)
+    return df
 
-def drop_cinless_rows():
+def drop_cinless_rows(df):
     #Drop all rows without a CIN.
     df.dropna(subset = ['cin'], inplace = True)
     print('cin-less rows dropped at: {}'.format(datetime.datetime.now()))
+    return df
 
-def drop_duplicate_rows():
+def drop_duplicate_rows(df):
     #Remove duplicate rows keeping the row with the best eligibilityStatus. 
     df.sort(['cin','eligibilitystatus'], inplace = True)
     df.drop_duplicates(subset = 'cin', inplace = True)
     print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
+    return df
 
-def fix_city_names():
+def fix_city_names(df):
     #Fix mispelt city names.
     df['city'] = df['city'].replace(city_map)
     if (-df['city'].isin(city_name_list)).any(): #If ANY city is NOT in the city_name_list
         df['city'] = df['city'].apply(
             lambda x: process.extractOne(x, city_name_list)[0])
     print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
+    return df
 
-def create_calendar_column():
+def create_calendar_column(df):
     df['calendar'] = pd.to_datetime(df['eligyear'] + df['eligmonth'], format = '%Y%m')
+    return df
 
-def create_bday_column():
+def create_bday_column(df):
     df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format = '%Y%m%d')
+    return df
 
-def create_hcplantext_column():
+def create_hcplantext_column(df):
     #create hcplantext column and populate with hcpcode data.
     df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
+    return df
 
-def create_language_column():
+def create_language_column(df):
     #create language column and populate with the codes from lang.
     df['language'] = df['lang'].map(language_map)
+    return df
 
-def create_ethnicity_column():
+def create_ethnicity_column(df):
     #create ethnicity column and populate with codes from race.
     df['ethnicity'] = df['race'].map(ethnicity_map)
+    return df
 
-def create_region_column():
+def create_region_column(df):
     #create region and populate by matching citynames to the region they're in.
     df['region'] = df['city'].map(region_map)
+    return df
 
-def fix_hcpstatus():
+def fix_hcpstatus(df):
     #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
     #HCplanText to "z No Plan"
     df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","s0","s9"]),'hcplantext'] = "z No Plan"
-
+    return df
 
 if __name__ == '__main__':
 
@@ -113,17 +123,17 @@ if __name__ == '__main__':
                      converters = converters )
 
     #Proccess Medi-Cal data.
-    drop_summary_row() 
-    drop_cinless_rows() 
-    drop_duplicate_rows() 
-    fix_city_names() 
-    create_calendar_column() 
-    create_bday_column() 
-    create_hcplantext_column() 
-    create_language_column()
-    create_ethnicity_column()
-    create_region_column()
-    fix_hcpstatus()
+    df = drop_summary_row(df) 
+    df = drop_cinless_rows(df) 
+    df = drop_duplicate_rows(df) 
+    df = fix_city_names(df) 
+    df = create_calendar_column(df) 
+    df = create_bday_column(df) 
+    df = create_hcplantext_column(df) 
+    df = create_language_column(df)
+    df = create_ethnicity_column(df)
+    df = create_region_column(df)
+    df = fix_hcpstatus(df)
 
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
