@@ -216,7 +216,7 @@ if __name__ == '__main__':
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
 
-    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6'}
+    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'N3'}
 
     with SavWriter(config.explode_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
@@ -256,12 +256,13 @@ if __name__ == '__main__':
             df = make_ccsaidcode_column(df)
             df = make_ihssaidcode_column(df)
             df = make_socmc_column(df)
-
+            df = format_string_columns(df)
             df = rename_columns_for_saving(df)
 
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()
             print('There are {} rows in the dataframe prior to writing'.format(len(df)))
+
             writer.writerows(df[save_info['column_names']].values)
             print('Write_file finished in: ', str(datetime.now()-write_file_start))
             print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
