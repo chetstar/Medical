@@ -99,12 +99,12 @@ def mcrank(dw, elig, local, covered):
     dw['mcrank'][elig & local] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
     dw['mcrank'][elig & covered] = dw['ffp'][elig & covered].map({100:4, 65:5, 50:6})
     dw['mcrank'][elig & local & covered]=dw['ffp'][elig & local & covered].map({100:1, 65:2, 50:3})
+    print('mcrank finished in: ', str(datetime.now()-mcrank_start))
     return dw
 
 def keep_best_mcrank(dw):
     #Groupby cin and calendar and keep only the row with the best mcrank for each group.
     dw = dw.sort('mcrank', ascending = True).groupby(['cin', 'calendar']).first()
-    print('mcrank finished in: ', str(datetime.now()-mcrank_start))
     return dw
 
 def make_primary_codes(dw):
