@@ -3,6 +3,7 @@ import explode
 import pandas as pd
 from pandas.util.testing import assert_series_equal
 from StringIO import StringIO
+import numpy as np
 
 class TestExplode(unittest.TestCase):
     """
@@ -103,7 +104,43 @@ class TestExplode(unittest.TestCase):
                 print('desired_result: {}'.format(desired_result))
                 print('actual_result: {}'.format(actual_result))
                 raise e
-            
+    
+    def test_mcrank(self):
+        #eligibilitystatus, full, respcount, ffp, aidcode, mcrank
+        data = (
+        [[True, True, True, 100, 1, 1],
+         [True, True, True, 65, 1, 2],
+         [True, True, True, 50, 1, 3], 
+         [True, True, False, 100, 1, 4],
+         [True, True, False, 65, 1, 5],
+         [True, True, False, 50, 1, 6],
+         [True, False, True, 100, 1, 7],
+         [True, False, True, 65, 1, 8],
+         [True, False, True, 50, 1, 9],
+         [True, False, False, 100, 1, 10],
+         [True, False, False, 65, 1, 11],
+         [True, False, False, 50, 1, 12],
+         [False, False, False, 50, 1, 13],
+         [False, False, False, None, None, None]]
+         )
+
+        data = data + data[::-1]
+        elig, full, respcount, ffp, aidcode, mcrank = zip(*data)
+
+        elig = pd.Series(elig)
+        covered = pd.Series(full)
+        local = pd.Series(respcount)
+        df = pd.DataFrame({'ffp':ffp, 'aidcode':aidcode})
+        
+        desired_result = pd.Series(mcrank).fillna(value=np.nan)
+        actual_result = pd.Series(explode.mcrank(df, elig, local, covered)['mcrank'])
+
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
 
 if __name__ == '__main__':
     unittest.main()
