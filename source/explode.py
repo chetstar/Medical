@@ -168,14 +168,21 @@ def merge_aidcode_info(df, aidcode_info):
                               'ffp':'ffpsp0'})
     return df
 
-def create_hcplantext_column(df):
+def make_hcplantext_column(df):
     #create hcplantext column and populate with hcpcode data.
     hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
                    '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
     df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
     return df
 
-def format_string_columns(df):
+def fix_hcplantext(df):
+    #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
+    #HCplanText to "z No Plan"
+    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
+    df['hcplantext'].fillna('z No Plan')
+    return df
+
+def format_string_columns(df, save_info):
     """  SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
     isn't the desired output, replace each NaN in a string column with an empty string."""
     string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
@@ -223,7 +230,11 @@ if __name__ == '__main__':
 
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
-    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'N3'}
+
+    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'F3.0', 'ffpsp1':'F3.0', 
+               'ffpsp2':'F3', 'ssi':'F1.0',
+               'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 'fullsp2':'F1.0', 'fullsp3':'F1',
+               'mcrank':'F2.0', 'disabled':'F1.0', 'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1'}
 
     with SavWriter(config.explode_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
@@ -264,8 +275,9 @@ if __name__ == '__main__':
             df = make_ihssaidcode_column(df)
             df = make_socmc_column(df)
             df = rename_columns_for_saving(df)
-            df = format_string_columns(df)
-            df = create_hcplantext_column(df)
+            df = format_string_columns(df, save_info)
+            df = make_hcplantext_column(df)
+            df = fix_hcplantext(df)
 
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()

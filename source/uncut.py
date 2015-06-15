@@ -104,7 +104,8 @@ def create_region_column(df):
 def fix_hcpstatus(df):
     #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
     #HCplanText to "z No Plan"
-    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","s0","s9"]),'hcplantext'] = "z No Plan"
+    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
+    df['hcplantext'].fillna('z No Plan')
     return df
 
 if __name__ == '__main__':
@@ -141,7 +142,7 @@ if __name__ == '__main__':
     with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignment'],
-                   columnWidths = save_info['column_width']) as writer:
+                   columnWidths = save_info['column_width'], ioUtf8 = True) as writer:
         writer.writerows(df[save_info['column_names']].values)
 
         
