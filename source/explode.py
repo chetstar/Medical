@@ -113,11 +113,11 @@ def make_primary_codes(dw):
     dw['eligibility_county_code'] = dw['respcounty']
     return dw
 
-def make_disabled_column(dw):
+def make_disabled_column(dw, elig, disabled):
     dw['disabled'] = (elig & disabled).map({True:1})
     return dw
 
-def make_foster_column(dw):
+def make_foster_column(dw, elig, foster):
     dw['foster'] = (elig & foster).map({True:1})
     return dw
 
@@ -168,9 +168,17 @@ def merge_aidcode_info(df, aidcode_info):
                               'ffp':'ffpsp0'})
     return df
 
+def create_hcplantext_column(df):
+    #create hcplantext column and populate with hcpcode data.
+    hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
+                   '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
+    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
+    return df
+
 def format_string_columns(df):
     """  SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
     isn't the desired output, replace each NaN in a string column with an empty string."""
+    string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
     df[string_cols] = df[string_cols].fillna('')
     return df
 
@@ -215,7 +223,6 @@ if __name__ == '__main__':
 
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
-
     formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'N3'}
 
     with SavWriter(config.explode_file, save_info['column_names'], save_info['types'], 
@@ -224,7 +231,7 @@ if __name__ == '__main__':
                    columnWidths = save_info['column_widths'],
                    formats = formats) as writer:
 
-        for i,df in enumerate(chunked_data_iterator):
+        for i, df in enumerate(chunked_data_iterator):
             chunkstart = datetime.now()
 
             df = drop_duplicate_rows(df, i, chunksize, dupemask)
@@ -246,8 +253,8 @@ if __name__ == '__main__':
             dw = mcrank(dw, elig, local, covered)
             dw = keep_best_mcrank(dw)
             dw = make_primary_codes(dw)
-            dw = make_disabled_column(dw)
-            dw = make_foster_column(dw)
+            dw = make_disabled_column(dw, elig, disabled)
+            dw = make_foster_column(dw, elig, foster)
 
             df = long_to_wide_by_aidcode(df, dw)
 
@@ -256,8 +263,9 @@ if __name__ == '__main__':
             df = make_ccsaidcode_column(df)
             df = make_ihssaidcode_column(df)
             df = make_socmc_column(df)
-            df = format_string_columns(df)
             df = rename_columns_for_saving(df)
+            df = format_string_columns(df)
+            df = create_hcplantext_column(df)
 
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()
