@@ -124,7 +124,7 @@ class TestExplode(unittest.TestCase):
          [False, False, False, None, None, None]]
          )
 
-        data = data + data[::-1]
+        data = data + data[::-1] #Make sure it works in either order.
         elig, full, respcount, ffp, aidcode, mcrank = zip(*data)
 
         elig = pd.Series(elig)
@@ -141,6 +141,9 @@ class TestExplode(unittest.TestCase):
             print('desired_result: {}'.format(desired_result))
             print('actual_result: {}'.format(actual_result))
             raise e
+
+    def test_make_disabled_bitmask(self):
+        pass
 
 if __name__ == '__main__':
     unittest.main()

@@ -26,7 +26,7 @@ def make_duplicates_bitmask(df):
 def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
     #Drop duplicate rows and rows without CINs.
     df.index = range(chunknum*chunksize, chunknum*chunksize + len(df.index))
-    df = df[dupemask]
+    df = df[dupemask[df.index]]
     return df
 
 def make_medsmonth_column(df):
@@ -38,6 +38,15 @@ def make_medsmonth_column(df):
 def make_bday_column(df):
     df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
     df = df.drop(['month','day','year'], axis = 1)
+    return df
+
+def datetime_to_integer(dt):
+    return writer.spssDateTime(dt.strftime('%Y-%m-%d'),'%Y-%m-%d')
+
+def format_date_columns(df):
+    df['bday'] = df['bday'].map(datetime_to_integer)
+    df['medsmonth'] = df['medsmonth'].map(datetime_to_integer)
+    df['calendar'] = df['calendar'].map(datetime_to_integer)
     return df
 
 def wide_to_long_by_month(df, stubs):
@@ -232,8 +241,8 @@ if __name__ == '__main__':
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
 
-    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'F3.0', 'ffpsp1':'F3.0', 
-               'ffpsp2':'F3', 'ssi':'F1.0',
+    formats = {'calendar':'SDATE10', 'medsmonth':'MOYR6', 'ffp':'F3.0', 'ffpsp1':'F3.0', 
+               'ffpsp2':'F3', 'ssi':'F1.0', 
                'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 'fullsp2':'F1.0', 'fullsp3':'F1',
                'mcrank':'F2.0', 'disabled':'F1.0', 'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1'}
 
@@ -279,7 +288,7 @@ if __name__ == '__main__':
             df = format_string_columns(df, save_info)
             df = make_hcplantext_column(df)
             df = fix_hcplantext(df)
-            print(df)
+            df = format_date_columns(df)
 
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()
