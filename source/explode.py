@@ -179,7 +179,7 @@ def fix_hcplantext(df):
     #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
     #HCplanText to "z No Plan"
     df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
-    df['hcplantext'].fillna('z No Plan')
+    df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
     return df
 
 def format_string_columns(df, save_info):
@@ -278,6 +278,7 @@ if __name__ == '__main__':
             df = format_string_columns(df, save_info)
             df = make_hcplantext_column(df)
             df = fix_hcplantext(df)
+            print(df)
 
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()

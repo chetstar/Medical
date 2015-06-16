@@ -108,6 +108,13 @@ def fix_hcpstatus(df):
     df['hcplantext'].fillna('z No Plan')
     return df
 
+def format_string_columns(df, save_info):
+    """  SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
+    isn't the desired output, replace each NaN in a string column with an empty string."""
+    string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
+    df[string_cols] = df[string_cols].fillna('')
+    return df
+
 if __name__ == '__main__':
 
     #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
@@ -135,9 +142,12 @@ if __name__ == '__main__':
     df = create_ethnicity_column(df)
     df = create_region_column(df)
     df = fix_hcpstatus(df)
+    df = format_string_columns(df)
 
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
+
+    formats = {'ssn':'N9.0', 'zip':'N5.0', 'planid':'F3.0', 'govt':'F1.0'} 
 
     with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
