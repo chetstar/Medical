@@ -95,10 +95,11 @@ def mcrank(dw, elig, local, covered):
     mcrank_start = datetime.now()
     #Create Medi-Cal ranks. Done in this order so worse ranks don't overwrite better ones.
     dw['mcrank'] = ((dw['aidcode'].notnull()) & (dw['ffp'] >= 1)).map({True:13})
-    dw['mcrank'][elig] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
-    dw['mcrank'][elig & local] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
-    dw['mcrank'][elig & covered] = dw['ffp'][elig & covered].map({100:4, 65:5, 50:6})
-    dw['mcrank'][elig & local & covered]=dw['ffp'][elig & local & covered].map({100:1, 65:2, 50:3})
+    dw.loc[elig,'mcrank'] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
+    dw.loc[(elig & local), 'mcrank'] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
+    dw.loc[(elig & covered), 'mcrank'] = dw['ffp'][elig & covered].map({100:4, 65:5, 50:6})
+    dw.loc[(elig & local & covered), 'mcrank'] = dw['ffp'][elig & local & covered].\
+                                                 map({100:1, 65:2, 50:3})
     print('mcrank finished in: ', str(datetime.now()-mcrank_start))
     return dw
 
