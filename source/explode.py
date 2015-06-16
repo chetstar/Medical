@@ -236,10 +236,10 @@ if __name__ == '__main__':
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
 
-    formats = {'calendar':'SDATE10', 'medsmonth':'MOYR6', 'ffp':'F3.0', 'ffpsp1':'F3.0', 
-               'ffpsp2':'F3', 'ssi':'F1.0', 
-               'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 'fullsp2':'F1.0', 'fullsp3':'F1',
-               'mcrank':'F2.0', 'disabled':'F1.0', 'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1'}
+    formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'F3.0', 'ffpsp1':'F3.0', 
+               'ffpsp2':'F3.0', 'ssi':'F1.0', 'eligibility_year':'F4.0', 'eligibility_month':'F2.0',
+               'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 'fullsp2':'F1.0', 'fullsp3':'F1.0',
+               'mcrank':'F2.0', 'disabled':'F1.0', 'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1.0'}
 
     with SavWriter(config.explode_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
