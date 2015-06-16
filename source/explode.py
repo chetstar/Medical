@@ -172,18 +172,19 @@ def merge_aidcode_info(df, aidcode_info):
                               'ffp':'ffpsp0'})
     return df
 
-def make_hcplantext_column(df):
-    #create hcplantext column and populate with hcpcode data.
-    hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
-                   '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
-    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
-    return df
-
 def fix_hcplantext(df):
     #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
     #HCplanText to "z No Plan"
     df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
     df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
+    return df
+
+def make_hcplantext_column(df):
+    #create hcplantext column and populate with hcpcode data.
+    hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
+                   '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
+    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
+    df = fix_hcplantext(df)
     return df
 
 def format_string_columns(df, save_info):
@@ -277,16 +278,14 @@ if __name__ == '__main__':
             df = make_ccsaidcode_column(df)
             df = make_ihssaidcode_column(df)
             df = make_socmc_column(df)
+            df = make_hcplantext_column(df)
             df = rename_columns_for_saving(df)
             df = format_string_columns(df, save_info)
-            df = make_hcplantext_column(df)
-            df = fix_hcplantext(df)
             df = format_date_columns(df)
 
             #Write our columns out as an SPSS .sav file.
             write_file_start = datetime.now()
             print('There are {} rows in the dataframe prior to writing'.format(len(df)))
-
             writer.writerows(df[save_info['column_names']].values)
             print('Write_file finished in: ', str(datetime.now()-write_file_start))
             print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
