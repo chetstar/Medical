@@ -64,13 +64,13 @@ def drop_duplicate_rows(df):
     print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
     return df
 
-def fix_city_names(df):
-    #Fix mispelt city names.
+def fix_city_names(df, city_name_list, city_map):
+    city_name_start = datetime.datetime.now()
     df['city'] = df['city'].replace(city_map)
-    if (-df['city'].isin(city_name_list)).any(): #If ANY city is NOT in the city_name_list
-        df['city'] = df['city'].apply(
-            lambda x: process.extractOne(x, city_name_list)[0])
-    print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
+    city_bitmask = -df['city'].isin(city_name_list)
+    df.loc[city_bitmask, 'city'] = df['city'][city_bitmask].apply(
+        lambda x: process.extractOne(x, city_name_list)[0])
+    print('fix_city_names completed in: {}'.format(str(datetime.datetime.now()-city_name_start)))
     return df
 
 def make_calendar_column(df):
@@ -147,7 +147,7 @@ if __name__ == '__main__':
         df = drop_summary_row(df) 
         df = drop_cinless_rows(df) 
         df = drop_duplicate_rows(df) 
-        df = fix_city_names(df) 
+        df = fix_city_names(df, city_name_list, city_map)
         df = make_hcplantext_column(df) 
         df = make_language_column(df)
         df = make_ethnicity_column(df)

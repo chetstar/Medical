@@ -6,7 +6,7 @@ from pandas.util.testing import assert_frame_equal
 
 from StringIO import StringIO
 
-class TestExplode(unittest.TestCase):
+class TestUncut(unittest.TestCase):
     """
     Main Test Class
     """
