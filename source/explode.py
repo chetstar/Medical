@@ -35,16 +35,10 @@ def make_medsmonth_column(df):
     df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
     return df
 
-def make_bday_column(df):
-    df['bday'] = pd.to_datetime(df['month']+df['day']+df['year'], format = '%m%d%Y')
-    df = df.drop(['month','day','year'], axis = 1)
-    return df
-
 def datetime_to_integer(dt):
     return writer.spssDateTime(dt.strftime('%Y-%m-%d'),'%Y-%m-%d')
 
 def format_date_columns(df):
-    df['bday'] = df['bday'].map(datetime_to_integer)
     df['medsmonth'] = df['medsmonth'].map(datetime_to_integer)
     df['calendar'] = df['calendar'].map(datetime_to_integer)
     return df
@@ -257,7 +251,6 @@ if __name__ == '__main__':
 
             df = drop_duplicate_rows(df, i, chunksize, dupemask)
             df = make_medsmonth_column(df)
-            df = make_bday_column(df)
             df = wide_to_long_by_month(df, stubs)
             df = drop_ineligible_rows(df)
             df = make_calendar_column(df)
