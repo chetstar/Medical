@@ -73,30 +73,30 @@ def fix_city_names(df):
     print('City name misspellings fixed at: {}'.format(datetime.datetime.now()))
     return df
 
-def create_calendar_column(df):
-    df['calendar'] = pd.to_datetime(df['eligyear'] + df['eligmonth'], format = '%Y%m')
+def make_calendar_column(df):
+    df['calendar'] = writer.spssDateTime((df['eligyear'] + df['eligmonth']), '%Y%m')
     return df
 
-def create_bday_column(df):
-    df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], format = '%Y%m%d')
+def make_bday_column(df):
+    df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], '%Y%m%d')
     return df
 
-def create_hcplantext_column(df):
+def make_hcplantext_column(df):
     #create hcplantext column and populate with hcpcode data.
     df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
     return df
 
-def create_language_column(df):
+def make_language_column(df):
     #create language column and populate with the codes from lang.
     df['language'] = df['lang'].map(language_map)
     return df
 
-def create_ethnicity_column(df):
+def make_ethnicity_column(df):
     #create ethnicity column and populate with codes from race.
     df['ethnicity'] = df['race'].map(ethnicity_map)
     return df
 
-def create_region_column(df):
+def make_region_column(df):
     #create region and populate by matching citynames to the region they're in.
     df['region'] = df['city'].map(region_map)
     return df
@@ -106,6 +106,7 @@ def fix_hcpstatus(df):
     #HCplanText to "z No Plan"
     df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
     df['hcplantext'].fillna('z No Plan')
+    df = fix_hcpstatus(df)
     return df
 
 def format_string_columns(df, save_info):
@@ -130,29 +131,30 @@ if __name__ == '__main__':
                      names = column_names, 
                      converters = converters )
 
-    #Proccess Medi-Cal data.
-    df = drop_summary_row(df) 
-    df = drop_cinless_rows(df) 
-    df = drop_duplicate_rows(df) 
-    df = fix_city_names(df) 
-    df = create_calendar_column(df) 
-    df = create_bday_column(df) 
-    df = create_hcplantext_column(df) 
-    df = create_language_column(df)
-    df = create_ethnicity_column(df)
-    df = create_region_column(df)
-    df = fix_hcpstatus(df)
-    df = format_string_columns(df)
 
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
 
-    formats = {'ssn':'N9.0', 'zip':'N5.0', 'planid':'F3.0', 'govt':'F1.0'} 
+    formats = {'ssn':'N9.0', 'zip':'N5.0', 'planid':'F3.0', 'govt':'F1.0', 'bday':'SDATE10',
+               'calendar':'MOYR6'} 
 
     with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignment'],
                    columnWidths = save_info['column_width'], ioUtf8 = True) as writer:
+
+        #Proccess Medi-Cal data.
+        df = drop_summary_row(df) 
+        df = drop_cinless_rows(df) 
+        df = drop_duplicate_rows(df) 
+        df = fix_city_names(df) 
+        df = make_hcplantext_column(df) 
+        df = make_language_column(df)
+        df = make_ethnicity_column(df)
+        df = make_region_column(df)
+        df = format_string_columns(df, save_info)
+        df = make_calendar_column(df) 
+        df = make_bday_column(df) 
         writer.writerows(df[save_info['column_names']].values)
 
         
