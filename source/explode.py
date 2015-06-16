@@ -32,11 +32,11 @@ def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
 def make_medsmonth_column(df):
     #Medsmonth is the most recent month with eligibility data in the file.
     medsmonth = df['eligmonth'][df.index[0]] + df['eligyear'][df.index[0]]
-    df['medsmonth'] = pd.to_datetime(medsmonth, format = '%m%Y')
+    df['medsmonth'] = medsmonth
     return df
 
-def datetime_to_integer(dt):
-    return writer.spssDateTime(dt.strftime('%Y-%m-%d'),'%Y-%m-%d')
+def datetime_to_integer(ts):
+    return writer.spssDateTime(ts,'%m%Y')
 
 def format_date_columns(df):
     df['medsmonth'] = df['medsmonth'].map(datetime_to_integer)
@@ -62,7 +62,7 @@ def drop_ineligible_rows(df):
     return df
 
 def make_calendar_column(df):
-    df['calendar'] = pd.to_datetime(df['eligmonth']+df['eligyear'], format='%m%Y')
+    df['calendar'] = df['eligmonth']+df['eligyear']
     return df
    
 def wide_to_long_by_aidcode(df):
