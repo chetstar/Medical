@@ -117,7 +117,8 @@ def format_string_columns(df, save_info):
     return df
 
 if __name__ == '__main__':
-
+    program_start_time = datetime.datetime.now()
+    
     #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
     with open(config.uncut_load_info) as f:
         column_names, column_specifications = zip(*json.load(f))
@@ -135,7 +136,7 @@ if __name__ == '__main__':
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
 
-    formats = {'ssn':'N9.0', 'zip':'N5.0', 'planid':'F3.0', 'govt':'F1.0', 'bday':'SDATE10',
+    formats = {'ssn':'N9', 'zip':'N5', 'planid':'F3.0', 'govt':'F1.0', 'bday':'SDATE10',
                'calendar':'MOYR6'} 
 
     with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
@@ -157,7 +158,7 @@ if __name__ == '__main__':
         df = make_bday_column(df) 
         writer.writerows(df[save_info['column_names']].values)
 
-        
+    print('Program finished in: {}.'.format(str(datetime.datetime.now()-program_start_time)))    
 
 
 
