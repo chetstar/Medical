@@ -67,6 +67,13 @@ def drop_duplicate_rows(df):
     print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
     return df
 
+def fuzzy_cutoff_match(city_name, city_name_list):
+    result = process.extractOne(city_name, city_name_list)
+    if result[1] >= 40:
+        return result[0]
+    else:
+        return city_name
+
 def fix_city_names(df, city_name_list, city_map, zips):
     city_name_start = datetime.datetime.now()
     df['city'] = df['city'].replace(city_map)
@@ -74,8 +81,7 @@ def fix_city_names(df, city_name_list, city_map, zips):
     state_mask = (df['state'].dropna() == 'CA').reindex(index = df.index, fill_value = True)
     zip_mask = df['zip'].dropna().isin(zips).reindex(index = df.index, fill_value = True)
     masks = (city_mask & state_mask & zip_mask)
-    df.loc[masks, 'city'] = df['city'][masks].apply(
-        lambda x: process.extractOne(x, city_name_list)[0])
+    df.loc[masks, 'city'] = df['city'][masks].apply(fuzzy_cutoff_match)
     print('fix_city_names completed in: {}'.format(str(datetime.datetime.now()-city_name_start)))
     return df
 
