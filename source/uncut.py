@@ -46,6 +46,9 @@ region_map = {'ALAMEDA' :'1. North', 'ALBANY' :'1. North', 'BERKELEY' :'1. North
 with open(config.city_names) as f:
     city_name_list = json.load(f)
 
+with open('alameda_county_zip_codes.json') as f:
+    zips = json.load(f)
+
 def drop_summary_row(df):
     #Code to delete the last row if its a summary row.
     df.drop(df.index[-1], inplace = True)
@@ -64,11 +67,14 @@ def drop_duplicate_rows(df):
     print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
     return df
 
-def fix_city_names(df, city_name_list, city_map):
+def fix_city_names(df, city_name_list, city_map, zips):
     city_name_start = datetime.datetime.now()
     df['city'] = df['city'].replace(city_map)
-    city_bitmask = -df['city'].isin(city_name_list)
-    df.loc[city_bitmask, 'city'] = df['city'][city_bitmask].apply(
+    city_mask = -df['city'].isin(city_name_list) #Negate so we only get cities not in list.
+    state_mask = (df['state'].dropna() == 'CA').reindex(index = df.index, fill_value = True)
+    zip_mask = df['zip'].dropna().isin(zips).reindex(index = df.index, fill_value = True)
+    masks = (city_mask & state_mask & zip_mask)
+    df.loc[masks, 'city'] = df['city'][masks].apply(
         lambda x: process.extractOne(x, city_name_list)[0])
     print('fix_city_names completed in: {}'.format(str(datetime.datetime.now()-city_name_start)))
     return df
@@ -148,7 +154,7 @@ if __name__ == '__main__':
         df = drop_summary_row(df) 
         df = drop_cinless_rows(df) 
         df = drop_duplicate_rows(df) 
-        df = fix_city_names(df, city_name_list, city_map)
+        df = fix_city_names(df, city_name_list, city_map, zips)
         df = make_hcplantext_column(df) 
         df = make_language_column(df)
         df = make_ethnicity_column(df)
