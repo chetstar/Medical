@@ -143,9 +143,32 @@ class TestExplode(unittest.TestCase):
             raise e
 
     def test_make_disabled_bitmask(self):
-        #dw['disabledx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
         dw = pd.DataFrame({'disabledx':[0,0,1,1,2,3,None]})
         actual_result = explode.make_disabled_bitmask(dw)
+        desired_result = pd.Series([False,False,True,True,False,False,False])
+
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
+
+    def test_make_foster_bitmask(self):
+        dw = pd.DataFrame({'fosterx':[0,0,1,1,2,3,None]})
+        actual_result = explode.make_foster_bitmask(dw)
+        desired_result = pd.Series([False,False,True,True,False,False,False])
+
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
+
+    def test_make_covered_bitmask(self):
+        dw = pd.DataFrame({'full':[0,0,1,1,2,3,None]})
+        actual_result = explode.make_covered_bitmask(dw)
         desired_result = pd.Series([False,False,True,True,False,False,False])
 
         try:
