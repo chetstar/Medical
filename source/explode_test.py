@@ -1,3 +1,15 @@
+"""Tests to add:
+
+drop_useless_rows
+wide_to_long_by_month
+wide_to_long_by_aidcode
+make_local_bitmask
+keep_best_mcrank
+long_to_wide_by_aidcode
+merge_aidcode_info
+
+"""
+
 import unittest
 import explode
 import pandas as pd
@@ -14,54 +26,86 @@ class TestExplode(unittest.TestCase):
         """
         make_eligibility_bitmask should:
          *Accept a dataframe with an 'eligibilitystatus' column of string values.
-         *Gracefully deal with NaN values
-         *return true if the first character of the string is less than or equal to 5.
          *Return a series object of the same length as the dataframe it recieved.
+         *The returned series should contain True if the first character of the string is 
+           less than or equal to 5 And False otherwise.
+         *Gracefully deal with NaN values.
         """
-        #What if the first character is alpha not numeric?
-        
+
         df = pd.DataFrame({'eligibilitystatus':[None, '001', '555', '600', '08B', None]})
-
         desired_result = pd.Series([False,True,True,False,True,False])
-
         actual_result = explode.make_eligibility_bitmask(df)
 
-        assert_series_equal(desired_result, actual_result)
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
 
-    def test_make_duplicates_bitmask(self):
-        #Must sort_index results because assert_series_equal fails if the orders don't match.
-
+    def test_make_duplicates_bitmask_best_fist(self):
         #Dupe eligibility best shown first.
         cins = ['000000000', '000000000', '000000000', '111111111']
         elig = ['001','002','003','001']
         df = pd.DataFrame({'cin':cins, 'elig':elig})
+
         desired_result = pd.Series([True, False, False, True])
         actual_result = explode.make_duplicates_bitmask(df).sort_index()
-        assert_series_equal(desired_result, actual_result)
 
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
+
+    def test_make_duplicates_bitmask_worst_fist(self):
         #Dupe eligibility worst shown first.
         cins = ['000000000', '000000000', '000000000', '111111111']
         elig = ['003','002','001','001']
         df = pd.DataFrame({'cin':cins, 'elig':elig})
+
         desired_result = pd.Series([False, False, True, True])
         actual_result = explode.make_duplicates_bitmask(df).sort_index()
-        assert_series_equal(desired_result, actual_result)
-        
+
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
+
+    def test_make_duplicates_bitmask_multiple_nan(self):        
         #Handle multiple NaN Cins.
         cins = ['000000000', None, None, None, None, '111111111']
         elig = ['001', '001', '001', '002', '003', '001']
         df = pd.DataFrame({'cin':cins, 'elig':elig})
+
         desired_result = pd.Series([True, False, False, False, False, True])
         actual_result = explode.make_duplicates_bitmask(df).sort_index()
-        assert_series_equal(desired_result, actual_result)
+
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
         
+    def test_make_duplicates_bitmask_nan_elig(self):        
         #Handle Nan eligs
         cins = ['000000000', '000000000', '111111111', '111111111', '222222222']
         elig = ['001', None, None, None, '001']
         df = pd.DataFrame({'cin':cins, 'elig':elig})
+
         desired_result = pd.Series([True, False, True, False, True])
         actual_result = explode.make_duplicates_bitmask(df).sort_index()
-        assert_series_equal(desired_result, actual_result)
+
+        try:
+            assert_series_equal(desired_result, actual_result)
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
 
     def test_drop_duplicate_rows(self):
 
@@ -84,22 +128,22 @@ class TestExplode(unittest.TestCase):
 
         dupemask = pd.Series(mask)
         
-        desired_results = [[],
-                           ['5'],
-                           ['6'],
+        desired_results = [[None,None,None],
+                           [None,None,'5'],
+                           ['6',None,None],
                            ['9','10','11'],
-                           [],
-                           ['16']]
+                           [None,None,None],
+                           [None,'16',None]]
 
         for i, df in enumerate(df_iter):
 
             df = explode.drop_duplicate_rows(df, i, 3, dupemask)
             
-            desired_result = pd.Series(desired_results[i]).values
-            actual_result = pd.Series(df['id']).values
+            desired_result = pd.Series(data=desired_results[i],index = range(3*i, 3*(i+1))).dropna()
+            actual_result = pd.Series(df['id'])
 
             try:
-                assert set(desired_result) == set(actual_result)
+                assert_series_equal(desired_result, actual_result, check_dtype = False)
             except AssertionError as e:
                 print('desired_result: {}'.format(desired_result))
                 print('actual_result: {}'.format(actual_result))
