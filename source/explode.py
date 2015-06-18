@@ -52,12 +52,13 @@ def wide_to_long_by_month(df, stubs):
     print('There are {} rows after wide_to_long by month'.format(len(df)))
     return df
 
-def drop_ineligible_rows(df):
-    #Drop all rows for months with no eligibility.
+def drop_useless_rows(df):
+    #Rows with no mcrank and no medicarestatus are useless, drop them.
     elig_drop_start = datetime.now()
-    df = df[(df[eligibilities].apply(
-        lambda x: x.dropna().str[0].astype(int))).lt(5,axis = 0).any(axis = 1).reindex(
-            index = df.index, fill_value = False)]
+    mcrank = df['mcrank'].notnull()
+    medicare = df['medicarestatus'].notnull() & (df['medicarestatus'] != '990')
+    keep_mask = ( medicare | mcrank )
+    df = df[keep_mask]
     print('Ineligible rows dropped in: ', str(datetime.now()-elig_drop_start))
     return df
 
@@ -128,35 +129,38 @@ def make_foster_column(dw, elig, foster):
 def long_to_wide_by_aidcode(df, dw):
     #Merge the columns we want to keep from the long_by_aidcode dataframe (dw) back into df.
     dw = dw.set_index('id')
-    cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank', 'disabled', 'foster']
+    cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank', 'disabled', 'foster',
+                     'ccsaidcode', 'ihssaidcode', 'ssi', 'retromc', 'socmc']
     df = pd.merge(df, dw[cols_to_merge], how = 'left', left_index = True, right_index = True) 
     return df
 
-def make_retromc_column(df):
+def make_retromc_column(dw):
     #If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1. 
-    df['retromc'] = df['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})    
-    return df
+    dw['retromc'] = dw['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})    
+    return dw
 
-def make_ssi_column(df):
+def make_ssi_column(dw):
     #If any aidcode in row is in ssicodes set ssi to '1'
-    df['ssi'] = df[aidcodes].isin(ssicodes).any(axis = 1).map({True:'1'})
-    return df
+    dw['ssi'] = dw['aidcode'].isin(ssicodes).map({True:'1'})
+    return dw
 
-def make_ccsaidcode_column(df):
+def make_ccsaidcode_column(dw):
     #If any aidcode in row is in ccscodes set ccsaidcode to '1'.
-    df['ccsaidcode'] = df[aidcodes].isin(ccscodes).any(axis = 1).map({True:'1'})
-    return df
+    dw['ccsaidcode'] = dw['aidcode'].isin(ccscodes).map({True:'1'}).reindex(
+        index = dw.index, fill_value = None)
+    return dw
 
-def make_ihssaidcode_column(df):
+def make_ihssaidcode_column(dw):
     #If any aidcode in row is in ihsscodes set ihssaidcode to '1'.
-    df['ihssaidcode'] = df[aidcodes].isin(ihsscodes).any(axis = 1).map({True:'1'})
-    return df
+    dw['ihssaidcode'] = dw['aidcode'].isin(ihsscodes).map({True:'1'})
+    return dw
 
-def make_socmc_column(df):
+def make_socmc_column(dw):
     #If the last character of any eligibility status in row is 1, set socmc to '1'.
-    df['socmc'] = (df[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
-                  eq(1,axis=0).any(axis = 1).map({True:'1'})
-    return df
+    dw['socmc'] = dw['eligibilitystatus'].dropna().str[-1].astype(int).eq(1).map({True:'1'})
+    #dw['socmc'] = (dw[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
+    #              eq(1,axis=0).any(axis = 1).map({True:'1'})
+    return dw
 
 def merge_aidcode_info(df, aidcode_info):
     #Merge in aidcode based info.
@@ -253,7 +257,6 @@ if __name__ == '__main__':
             df = drop_duplicate_rows(df, i, chunksize, dupemask)
             df = make_medsmonth_column(df)
             df = wide_to_long_by_month(df, stubs)
-            df = drop_ineligible_rows(df)
             df = make_calendar_column(df)
             df = merge_aidcode_info(df, aidcode_info)
 
@@ -267,17 +270,19 @@ if __name__ == '__main__':
 
             dw = mcrank(dw, elig, local, covered)
             dw = keep_best_mcrank(dw)
+
             dw = make_primary_codes(dw)
             dw = make_disabled_column(dw, elig, disabled)
             dw = make_foster_column(dw, elig, foster)
-
+            dw = make_retromc_column(dw)
+            dw = make_ssi_column(dw)
+            dw = make_ccsaidcode_column(dw)
+            dw = make_ihssaidcode_column(dw)
+            dw = make_socmc_column(dw)
+            
             df = long_to_wide_by_aidcode(df, dw)
 
-            df = make_retromc_column(df)
-            df = make_ssi_column(df)
-            df = make_ccsaidcode_column(df)
-            df = make_ihssaidcode_column(df)
-            df = make_socmc_column(df)
+            df = drop_useless_rows(df)
             df = make_hcplantext_column(df)
             df = rename_columns_for_saving(df)
             df = format_string_columns(df, save_info)
