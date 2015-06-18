@@ -1,7 +1,7 @@
 import unittest
 import explode
 import pandas as pd
-from pandas.util.testing import assert_series_equal
+from pandas.util.testing import assert_series_equal, assert_frame_equal
 from StringIO import StringIO
 import numpy as np
 
@@ -145,16 +145,15 @@ class TestExplode(unittest.TestCase):
     def test_make_disabled_bitmask(self):
         #dw['disabledx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
         dw = pd.DataFrame({'disabledx':[0,0,1,1,2,3,None]})
-        actual_result = explode.make_disabled_bitmask(dw).values
-        desired_result = pd.Series({'disabledx':[False,False,True,True,False,False,False]}).values
+        actual_result = explode.make_disabled_bitmask(dw)
+        desired_result = pd.Series([False,False,True,True,False,False,False])
 
         try:
-            actual_result == desired_result
+            assert_series_equal(desired_result, actual_result)
         except AssertionError as e:
             print('desired_result: {}'.format(desired_result))
             print('actual_result: {}'.format(actual_result))
             raise e
-
 
 if __name__ == '__main__':
     unittest.main()
