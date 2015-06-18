@@ -56,15 +56,23 @@ def drop_summary_row(df):
 
 def drop_cinless_rows(df):
     #Drop all rows without a CIN.
+    start_time = datetime.datetime.now()
+    rows_before_drop = len(df)
     df.dropna(subset = ['cin'], inplace = True)
-    print('cin-less rows dropped at: {}'.format(datetime.datetime.now()))
+    rows_dropped = rows_before_drop - len(df)
+    elapsed_time = datetime.datetime.now()-start_time
+    print('{0} CIN-less rows dropped in: {1}'.format(rows_dropped, elapsed_time))
     return df
 
 def drop_duplicate_rows(df):
     #Remove duplicate rows keeping the row with the best eligibilityStatus. 
+    start_time = datetime.datetime.now()
+    start_row_count = len(df)
     df.sort(['cin','eligibilitystatus'], inplace = True)
     df.drop_duplicates(subset = 'cin', inplace = True)
-    print('Duplicate rows removed at: {}'.format(datetime.datetime.now()))
+    rows_dropped = start_row_count - len(df)
+    elapsed_time = datetime.datetime.now()-start_time
+    print('{0} duplicate rows dropped in: {1}'.format(rows_dropped, elapsed_time))
     return df
 
 def fuzzy_cutoff_match(city_name, city_name_list):
@@ -75,14 +83,15 @@ def fuzzy_cutoff_match(city_name, city_name_list):
         return city_name
 
 def fix_city_names(df, city_name_list, city_map, zips):
-    city_name_start = datetime.datetime.now()
+    start_time = datetime.datetime.now()
     df['city'] = df['city'].replace(city_map)
     city_mask = -df['city'].isin(city_name_list) #Negate so we only get cities not in list.
     state_mask = (df['state'].dropna() == 'CA').reindex(index = df.index, fill_value = True)
     zip_mask = df['zip'].dropna().isin(zips).reindex(index = df.index, fill_value = True)
     masks = (city_mask & state_mask & zip_mask)
     df.loc[masks, 'city'] = df['city'][masks].apply(fuzzy_cutoff_match)
-    print('fix_city_names completed in: {}'.format(str(datetime.datetime.now()-city_name_start)))
+    elapsed_time = datetime.datetime.now()-start_time
+    print('Mispelt city names fixed in: {}'.format(elapsed_time))
     return df
 
 def make_calendar_column(df):
@@ -122,7 +131,7 @@ def fix_hcpstatus(df):
     return df
 
 def format_string_columns(df, save_info):
-    """  SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
+    """SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
     isn't the desired output, replace each NaN in a string column with an empty string."""
     string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
     df[string_cols] = df[string_cols].fillna('')
@@ -143,7 +152,6 @@ if __name__ == '__main__':
                      header = None,
                      names = column_names, 
                      converters = converters )
-
 
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
@@ -171,6 +179,3 @@ if __name__ == '__main__':
         writer.writerows(df[save_info['column_names']].values)
 
     print('Program finished in: {}.'.format(str(datetime.datetime.now()-program_start_time)))    
-
-
-
