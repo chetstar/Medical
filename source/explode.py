@@ -35,12 +35,9 @@ def make_medsmonth_column(df):
     df['medsmonth'] = medsmonth
     return df
 
-def datetime_to_integer(ts):
-    return writer.spssDateTime(ts,'%m%Y')
-
 def format_date_columns(df):
-    df['medsmonth'] = df['medsmonth'].map(datetime_to_integer)
-    df['calendar'] = df['calendar'].map(datetime_to_integer)
+    df['medsmonth'] = df['medsmonth'].map(lambda x: writer.spssDateTime(x, '%m%Y'))
+    df['calendar'] = df['calendar'].map(lambda x: writer.spssDateTime(x, '%m%Y'))
     return df
 
 def wide_to_long_by_month(df, stubs):
