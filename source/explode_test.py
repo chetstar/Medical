@@ -143,7 +143,18 @@ class TestExplode(unittest.TestCase):
             raise e
 
     def test_make_disabled_bitmask(self):
-        pass
+        #dw['disabledx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+        dw = pd.DataFrame({'disabledx':[0,0,1,1,2,3,None]})
+        actual_result = explode.make_disabled_bitmask(dw).values
+        desired_result = pd.Series({'disabledx':[False,False,True,True,False,False,False]}).values
+
+        try:
+            actual_result == desired_result
+        except AssertionError as e:
+            print('desired_result: {}'.format(desired_result))
+            print('actual_result: {}'.format(actual_result))
+            raise e
+
 
 if __name__ == '__main__':
     unittest.main()
