@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+import multiprocessing as mp
 
 import pandas as pd
 from savReaderWriter import SavWriter
@@ -202,6 +203,47 @@ def rename_columns_for_saving(df):
                               'ffpsp0':'ffp',})
     return df
 
+def process_chunk(chunk):
+    chunk_number, df = chunk
+    chunkstart = datetime.now()
+
+    df = drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
+    df = make_medsmonth_column(df)
+    df = wide_to_long_by_month(df, stubs)
+    df = make_calendar_column(df)
+    df = merge_aidcode_info(df, aidcode_info)
+
+    dw = wide_to_long_by_aidcode(df)
+
+    elig = make_eligibility_bitmask(dw)
+    local = make_local_bitmask(dw)
+    covered = make_covered_bitmask(dw)
+    disabled = make_disabled_bitmask(dw)
+    foster = make_foster_bitmask(dw)
+
+    dw = mcrank(dw, elig, local, covered)
+    dw = keep_best_mcrank(dw)
+
+    dw = make_primary_codes(dw)
+    dw = make_disabled_column(dw, elig, disabled)
+    dw = make_foster_column(dw, elig, foster)
+    dw = make_retromc_column(dw)
+    dw = make_ssi_column(dw)
+    dw = make_ccsaidcode_column(dw)
+    dw = make_ihssaidcode_column(dw)
+    dw = make_socmc_column(dw)
+    
+    df = long_to_wide_by_aidcode(df, dw)
+
+    df = drop_useless_rows(df)
+    df = make_hcplantext_column(df)
+    df = rename_columns_for_saving(df)
+    df = format_string_columns(df, save_info)
+    df = format_date_columns(df)
+
+    print('Chunk finished in: ', str(datetime.now() - chunkstart))
+    return df
+
 if __name__ == '__main__':
 
     start_time = datetime.now()
@@ -216,7 +258,7 @@ if __name__ == '__main__':
     #All columns should be brought in as strings.
     converters = {name:str for name in column_names}
     #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
-    chunksize = 10000
+    chunksize = 2
     chunked_data_iterator = pd.read_fwf(config.medical_file,
                                         colspecs = column_specifications, 
                                         names = column_names, 
@@ -248,49 +290,13 @@ if __name__ == '__main__':
                    columnWidths = save_info['column_widths'],
                    formats = formats) as writer:
 
-        for i, df in enumerate(chunked_data_iterator):
-            chunkstart = datetime.now()
+        pool = mp.Pool(processes=mp.cpu_count())
 
-            df = drop_duplicate_rows(df, i, chunksize, dupemask)
-            df = make_medsmonth_column(df)
-            df = wide_to_long_by_month(df, stubs)
-            df = make_calendar_column(df)
-            df = merge_aidcode_info(df, aidcode_info)
+        for df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
 
-            dw = wide_to_long_by_aidcode(df)
-
-            elig = make_eligibility_bitmask(dw)
-            local = make_local_bitmask(dw)
-            covered = make_covered_bitmask(dw)
-            disabled = make_disabled_bitmask(dw)
-            foster = make_foster_bitmask(dw)
-
-            dw = mcrank(dw, elig, local, covered)
-            dw = keep_best_mcrank(dw)
-
-            dw = make_primary_codes(dw)
-            dw = make_disabled_column(dw, elig, disabled)
-            dw = make_foster_column(dw, elig, foster)
-            dw = make_retromc_column(dw)
-            dw = make_ssi_column(dw)
-            dw = make_ccsaidcode_column(dw)
-            dw = make_ihssaidcode_column(dw)
-            dw = make_socmc_column(dw)
-            
-            df = long_to_wide_by_aidcode(df, dw)
-
-            df = drop_useless_rows(df)
-            df = make_hcplantext_column(df)
-            df = rename_columns_for_saving(df)
-            df = format_string_columns(df, save_info)
-            df = format_date_columns(df)
-
-            #Write our columns out as an SPSS .sav file.
-            write_file_start = datetime.now()
-            print('There are {} rows in the dataframe prior to writing'.format(len(df)))
             writer.writerows(df[save_info['column_names']].values)
-            print('Write_file finished in: ', str(datetime.now()-write_file_start))
-            print('Chunk ', i, ' finished in: ', str(datetime.now() - chunkstart))
+
+            
 
     print('Program finished in: ', str(datetime.now() - start_time))
 
