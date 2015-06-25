@@ -243,8 +243,9 @@ def process_chunk(chunk):
 
     writer.writerows(df[save_info['column_names']].values)
 
-    print('Chunk finished in: ', str(datetime.now() - chunkstart))
-    return 1
+    print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
+
+    return 
 
 if __name__ == '__main__':
 
@@ -260,7 +261,7 @@ if __name__ == '__main__':
     #All columns should be brought in as strings.
     converters = {name:str for name in column_names}
     #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
-    chunksize = 2
+    chunksize = config.chunk_size
     chunked_data_iterator = pd.read_fwf(config.medical_file,
                                         colspecs = column_specifications, 
                                         names = column_names, 
@@ -293,7 +294,8 @@ if __name__ == '__main__':
                    formats = formats) as writer:
 
         pool = mp.Pool(processes=mp.cpu_count())
-        pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1)
+        for df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1): 
+            pass
 
     print('Program finished in: ', str(datetime.now() - start_time))
 

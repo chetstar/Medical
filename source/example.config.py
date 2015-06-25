@@ -21,6 +21,8 @@ explode_load_info = './explode_columns_load_info.json'
 #Location of file with information on saving data into SPSS .sav format.
 explode_save_info = './explode_columns_save_info.json'
 
+#Number of rows to read from Medi-Cal file per chunk.
+chunk_size = 10000
 
 ### Config data for uncut.py ###
 
