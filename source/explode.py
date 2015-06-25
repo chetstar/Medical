@@ -299,8 +299,10 @@ if __name__ == '__main__':
 
         l = mp.Lock()
         pool = mp.Pool(processes=mp.cpu_count()+2, initializer=init, initargs=(l,))
-        nada = pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1)
-        nada.next()
+        for x in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
+            pass
+        pool.close()
+        pool.join()
 
     print('Program finished in: ', str(datetime.now() - start_time))
 
