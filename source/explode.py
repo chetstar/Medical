@@ -243,7 +243,7 @@ def process_chunk(chunk):
 
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
 
-    return 
+    return df
 
 if __name__ == '__main__':
 
