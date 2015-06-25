@@ -293,9 +293,14 @@ if __name__ == '__main__':
                    columnWidths = save_info['column_widths'],
                    formats = formats) as writer:
 
-        pool = mp.Pool(processes=mp.cpu_count()+2)
-        lock = mp.Lock()
-        pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1)
+        def init(l):
+            global lock
+            lock = l
+
+        l = mp.Lock()
+        pool = mp.Pool(processes=mp.cpu_count()+2, initializer=init, initargs=(l,))
+        nada = pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1)
+        nada.next()
 
     print('Program finished in: ', str(datetime.now() - start_time))
 
