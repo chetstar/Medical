@@ -241,8 +241,10 @@ def process_chunk(chunk):
     df = format_string_columns(df, save_info)
     df = format_date_columns(df)
 
+    writer.writerows(df[save_info['column_names']].values)
+
     print('Chunk finished in: ', str(datetime.now() - chunkstart))
-    return df
+    return 1
 
 if __name__ == '__main__':
 
@@ -291,12 +293,7 @@ if __name__ == '__main__':
                    formats = formats) as writer:
 
         pool = mp.Pool(processes=mp.cpu_count())
-
-        for df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
-
-            writer.writerows(df[save_info['column_names']].values)
-
-            
+        pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1)
 
     print('Program finished in: ', str(datetime.now() - start_time))
 
