@@ -241,11 +241,8 @@ def process_chunk(chunk):
     df = format_string_columns(df, save_info)
     df = format_date_columns(df)
 
-    with lock:
-        writer.writerows(df[save_info['column_names']].values)
-
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
-    return
+    return df
 
 if __name__ == '__main__':
 
@@ -293,14 +290,9 @@ if __name__ == '__main__':
                    columnWidths = save_info['column_widths'],
                    formats = formats) as writer:
 
-        def init(l):
-            global lock
-            lock = l
-
-        l = mp.Lock()
-        pool = mp.Pool(processes=mp.cpu_count()+2, initializer=init, initargs=(l,))
-        for x in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
-            pass
+        pool = mp.Pool(processes=mp.cpu_count()+2)
+        for df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
+            writer.writerows(df[save_info['column_names']].values)
         pool.close()
         pool.join()
 
