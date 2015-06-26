@@ -32,7 +32,9 @@ def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
 
 def make_medsmonth_column(df):
     #Medsmonth is the most recent month with eligibility data in the file.
-    medsmonth = df['eligmonth'][df.index[0]] + df['eligyear'][df.index[0]]
+    month_time = datetime(int(df['eligyear'][df.index[0]]), int(df['eligmonth'][df.index[0]]), 1)
+    zero_time = datetime(1582,10,14) #0 in SPSS time system.
+    medsmonth = int((month_time - zero_time).total_seconds())
     df['medsmonth'] = medsmonth
     return df
 
@@ -57,11 +59,17 @@ def drop_useless_rows(df):
     medicare = df['medicarestatus'].notnull() & (df['medicarestatus'] != '990')
     keep_mask = ( medicare | mcrank )
     df = df[keep_mask]
-    print('Ineligible rows dropped in: ', str(datetime.now()-elig_drop_start))
+    #print('Ineligible rows dropped in: ', str(datetime.now()-elig_drop_start))
     return df
 
+def spss_date(row):
+    zero_time = datetime(1582,10,14) #0 in SPSS time system.
+    time_to_convert = datetime(int(row['eligyear']),int(row['eligmonth']),1)
+    return int((time_to_convert - zero_time).total_seconds())
+
 def make_calendar_column(df):
-    df['calendar'] = df['eligmonth']+df['eligyear']
+    #df['calendar'] = df['eligmonth']+df['eligyear']
+    df['calendar'] = df.apply(spss_date, axis = 1)
     return df
    
 def wide_to_long_by_aidcode(df):
@@ -102,7 +110,7 @@ def mcrank(dw, elig, local, covered):
     dw.loc[(elig & covered), 'mcrank'] = dw['ffp'][elig & covered].map({100:4, 65:5, 50:6})
     dw.loc[(elig & local & covered), 'mcrank'] = dw['ffp'][elig & local & covered].\
                                                  map({100:1, 65:2, 50:3})
-    print('mcrank finished in: ', str(datetime.now()-mcrank_start))
+    #print('mcrank finished in: ', str(datetime.now()-mcrank_start))
     return dw
 
 def keep_best_mcrank(dw):
@@ -239,7 +247,7 @@ def process_chunk(chunk):
     df = make_hcplantext_column(df)
     df = rename_columns_for_saving(df)
     df = format_string_columns(df, save_info)
-    df = format_date_columns(df)
+    #df = format_date_columns(df)
 
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
     return chunk_number, df
