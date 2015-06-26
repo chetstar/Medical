@@ -290,7 +290,7 @@ if __name__ == '__main__':
                    columnWidths = save_info['column_widths'],
                    formats = formats) as writer:
 
-        pool = mp.Pool(processes=mp.cpu_count()+2)
+        pool = mp.Pool(8)
         for df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
             writer.writerows(df[save_info['column_names']].values)
         pool.close()
