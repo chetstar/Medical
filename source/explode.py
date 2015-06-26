@@ -43,11 +43,11 @@ def format_date_columns(df):
 
 def wide_to_long_by_month(df, stubs):
     wide_start = datetime.now()
-    print('There are {} rows prior to wide_to_long by month'.format(len(df)))
+    #print('There are {} rows prior to wide_to_long by month'.format(len(df)))
     df = pd.wide_to_long(df, stubs, 'cin', 'j')
     df = df.reset_index()
-    print('Wide to long finished in: ', str(datetime.now()-wide_start))
-    print('There are {} rows after wide_to_long by month'.format(len(df)))
+    #print('Wide to long finished in: ', str(datetime.now()-wide_start))
+    #print('There are {} rows after wide_to_long by month'.format(len(df)))
     return df
 
 def drop_useless_rows(df):
@@ -70,10 +70,10 @@ def wide_to_long_by_aidcode(df):
     cols_to_keep.extend(['cin', 'calendar'])
     dw = df[cols_to_keep].copy()
     dw['id'] = dw.index
-    print('There are {} rows prior to wide_to_long by aidcode'.format(len(dw)))
+    #print('There are {} rows prior to wide_to_long by aidcode'.format(len(dw)))
     dw = pd.wide_to_long(dw, aidcode_stubs, 'cin', 'j')
     dw = dw.reset_index()
-    print('There are {} rows after to wide_to_long by aidcode'.format(len(dw)))
+    #print('There are {} rows after to wide_to_long by aidcode'.format(len(dw)))
     return dw
 
 def make_eligibility_bitmask(dw):
