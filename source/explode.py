@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 import multiprocessing as mp
+import mmap
 
 import pandas as pd
 from savReaderWriter import SavWriter
@@ -243,7 +244,7 @@ def process_chunk(chunk):
     
     df = long_to_wide_by_aidcode(df, dw)
 
-    df = drop_useless_rows(df)
+    #df = drop_useless_rows(df)
     df = make_hcplantext_column(df)
     df = rename_columns_for_saving(df)
     df = format_string_columns(df, save_info)
@@ -267,6 +268,7 @@ if __name__ == '__main__':
     converters = {name:str for name in column_names}
     #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
     chunksize = config.chunk_size
+
     chunked_data_iterator = pd.read_fwf(config.medical_file,
                                         colspecs = column_specifications, 
                                         names = column_names, 
