@@ -242,7 +242,7 @@ def process_chunk(chunk):
     df = format_date_columns(df)
 
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
-    return df
+    return chunk_number, df
 
 if __name__ == '__main__':
 
@@ -291,7 +291,8 @@ if __name__ == '__main__':
                    formats = formats) as writer:
 
         pool = mp.Pool(8)
-        for df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
+        for i, df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
+            print('Writing chunk {}.'.format(i))
             writer.writerows(df[save_info['column_names']].values)
         pool.close()
         pool.join()
