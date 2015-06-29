@@ -36,7 +36,7 @@ def make_medsmonth_column(df):
     month_time = datetime(int(df['eligyear'][df.index[0]]), int(df['eligmonth'][df.index[0]]), 1)
     zero_time = datetime(1582,10,14) #0 in SPSS time system.
     medsmonth = int((month_time - zero_time).total_seconds())
-    df['medsmonth'] = medsmonth
+    df.loc[:,'medsmonth'] = medsmonth
     return df
 
 def format_date_columns(df):
