@@ -38,3 +38,13 @@ uncut_save_info = './uncut_columns_save_info.json'
 #List of correct city names for spell checking city column.
 city_names = './city_names.json'
 
+### Config data for county.py ###
+
+#Location to save CountyCase.sav or alternate name.
+county_file = ''
+
+#Location of json file with information loading data from Medi-Cal fixed widht file.
+county_load_info = './county_load_info.json'
+
+#Location of json file with parameters for saving SPSS .sav file.
+county_save_info = './county_save_info.json'
