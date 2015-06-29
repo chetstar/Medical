@@ -1,14 +1,15 @@
 import json
-import datetime
+from datetime import datetime
 
 from savReaderWriter import SavWriter #For saving SPSS .sav files.
 import pandas as pd
 
+import common
 import config
 
 if __name__ == "__main__":
 
-    program_start_time = datetime.datetime.now()
+    program_start_time = datetime.now()
     
     #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
     with open(config.county_load_info) as fp:
@@ -23,6 +24,9 @@ if __name__ == "__main__":
                      names = column_names, 
                      converters = converters )
 
+    df = common.drop_summary_row(df)
+    df = common.drop_cinless_rows(df)
+
     with open(config.county_save_info) as fp:
         save_info = json.load(fp)
 
@@ -34,3 +38,5 @@ if __name__ == "__main__":
                    columnWidths = save_info['column_widths']) as writer:
 
         writer.writerows(df[save_info['column_names']].values)
+
+    print('Program finished in: {}.'.format(str(datetime.now()-program_start_time)))    

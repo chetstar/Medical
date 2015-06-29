@@ -5,12 +5,8 @@ from savReaderWriter import SavWriter #For saving SPSS .sav files.
 import pandas as pd
 from fuzzywuzzy import process #For spell checking city names.
 
+import common
 import config
-
-#These dictionaries are used to translate numeric codes into their English equivalents.
-#Health care plan codes and names.
-hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
-                       '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
 
 #Language codes and their respective languages.
 language_map = {'B': 'Chinese', 'P': 'Portugese', 'A': 'Other Sign', 'D': 'Cambodian', 
@@ -67,7 +63,6 @@ def fix_city_names(df, city_name_list, city_map, zips):
     masks = (city_mask & state_mask & zip_mask)
     df.loc[masks, 'city'] = df['city'][masks].apply(fuzzy_cutoff_match)
     elapsed_time = datetime.datetime.now()-start_time
-    print('Mispelt city names fixed in: {}'.format(elapsed_time))
     return df
 
 def make_calendar_column(df):
@@ -76,11 +71,6 @@ def make_calendar_column(df):
 
 def make_bday_column(df):
     df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], '%Y%m%d')
-    return df
-
-def make_hcplantext_column(df, hcpcode_map):
-    """Create hcplantext column and populate with hcpcode data."""
-    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
     return df
 
 def make_language_column(df, language_map):
@@ -98,11 +88,10 @@ def make_region_column(df, region_map):
     df['region'] = df['city'].map(region_map)
     return df
 
-def format_string_columns(df, save_info):
-    """SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
-    isn't the desired output, replace each NaN in a string column with an empty string."""
-    string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
-    df[string_cols] = df[string_cols].fillna('')
+def drop_duplicate_rows(df):
+    """Remove duplicate rows keeping the row with the best eligibilityStatus."""
+    df.sort(['cin','eligibilitystatus'], inplace = True)
+    df.drop_duplicates(subset = 'cin', inplace = True)
     return df
 
 if __name__ == '__main__':
@@ -136,18 +125,17 @@ if __name__ == '__main__':
                    formats = formats) as writer:
 
         #Proccess Medi-Cal data.
-        df = drop_summary_row(df) 
-        df = drop_cinless_rows(df) 
+        df = common.drop_summary_row(df) 
+        df = common.drop_cinless_rows(df) 
         df = drop_duplicate_rows(df) 
         df = fix_city_names(df, city_name_list, city_map, zips)
-        df = make_hcplantext_column(df, hcpcode_map)
+        df = common.make_hcplantext_column(df)
         df = make_language_column(df, language_map)
         df = make_ethnicity_column(df, ethnicity_map)
         df = make_region_column(df, region_map)
-        df = format_string_columns(df, save_info)
+        df = common.format_string_columns(df, save_info)
         df = make_calendar_column(df) 
         df = make_bday_column(df)
-        df = fix_hcplantext(df)
 
         writer.writerows(df[save_info['column_names']].values)
 

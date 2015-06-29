@@ -8,15 +8,23 @@ def drop_cinless_rows(df):
     df.dropna(subset = ['cin'], inplace = True)
     return df
 
-def drop_duplicate_rows(df):
-    """Remove duplicate rows keeping the row with the best eligibilityStatus."""
-    df.sort(['cin','eligibilitystatus'], inplace = True)
-    df.drop_duplicates(subset = 'cin', inplace = True)
+def make_hcplantext_column(df):
+    def fix_hcplantext(df):
+        """If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
+        HCplanText to 'z No Plan'"""
+        df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext']="z No Plan"
+        df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
+        return df
+    """Create hcplantext column and populate with hcpcode data."""
+    hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
+                   '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
+    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
+    df = fix_hcplantext(df)
     return df
 
-def fix_hcplantext(df):
-    """If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
-    HCplanText to 'z No Plan'"""
-    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
-    df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
+def format_string_columns(df, save_info):
+    """  SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
+    isn't the desired output, replace each NaN in a string column with an empty string."""
+    string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
+    df[string_cols] = df[string_cols].fillna('')
     return df

@@ -6,6 +6,7 @@ import mmap
 import pandas as pd
 from savReaderWriter import SavWriter
 
+import common
 import config
 
 #Aidcodes that match to their respective categories.
@@ -48,15 +49,6 @@ def wide_to_long_by_month(df, stubs):
     #print('There are {} rows after wide_to_long by month'.format(len(df)))
     return df
 
-def drop_useless_rows(df):
-    #Rows with no mcrank and no medicarestatus are useless, drop them.
-    elig_drop_start = datetime.now()
-    mcrank = df['mcrank'].notnull()
-    medicare = df['medicarestatus'].notnull() & (df['medicarestatus'] != '990')
-    keep_mask = ( medicare | mcrank )
-    df = df[keep_mask]
-    return df
-
 def spss_date(row):
     zero_time = datetime(1582,10,14) #0 in SPSS time system.
     time_to_convert = datetime(int(row['eligyear']),int(row['eligmonth']),1)
@@ -73,10 +65,8 @@ def wide_to_long_by_aidcode(df):
     cols_to_keep.extend(['cin', 'calendar'])
     dw = df[cols_to_keep].copy()
     dw['id'] = dw.index
-    #print('There are {} rows prior to wide_to_long by aidcode'.format(len(dw)))
     dw = pd.wide_to_long(dw, aidcode_stubs, 'cin', 'j')
     dw = dw.reset_index()
-    #print('There are {} rows after to wide_to_long by aidcode'.format(len(dw)))
     return dw
 
 def make_eligibility_bitmask(dw):
@@ -105,7 +95,6 @@ def mcrank(dw, elig, local, covered):
     dw.loc[(elig & covered), 'mcrank'] = dw['ffp'][elig & covered].map({100:4, 65:5, 50:6})
     dw.loc[(elig & local & covered), 'mcrank'] = dw['ffp'][elig & local & covered].\
                                                  map({100:1, 65:2, 50:3})
-    #print('mcrank finished in: ', str(datetime.now()-mcrank_start))
     return dw
 
 def keep_best_mcrank(dw):
@@ -177,28 +166,6 @@ def merge_aidcode_info(df, aidcode_info):
                               'ffp':'ffpsp0'})
     return df
 
-def fix_hcplantext(df):
-    #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
-    #HCplanText to "z No Plan"
-    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
-    df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
-    return df
-
-def make_hcplantext_column(df):
-    #create hcplantext column and populate with hcpcode data.
-    hcpcode_map = {'300':'Alliance', '340':'Blue Cross', '051':'Center for Elders',
-                   '056':'ONLOK Seniors', '000':'z No Plan', None:'z No Plan'}
-    df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
-    df = fix_hcplantext(df)
-    return df
-
-def format_string_columns(df, save_info):
-    """  SavWriter will translate NaNs in string columns to output the string 'NaN'. Since that
-    isn't the desired output, replace each NaN in a string column with an empty string."""
-    string_cols = [x for x in save_info['types'] if save_info['types'][x] > 0]
-    df[string_cols] = df[string_cols].fillna('')
-    return df
-
 def rename_columns_for_saving(df):
     df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 'fullsp0':'full',
                               'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
@@ -238,9 +205,9 @@ def process_chunk(chunk):
     
     df = long_to_wide_by_aidcode(df, dw)
 
-    df = make_hcplantext_column(df)
+    df = common.make_hcplantext_column(df)
     df = rename_columns_for_saving(df)
-    df = format_string_columns(df, save_info)
+    df = common.format_string_columns(df, save_info)
 
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
     return chunk_number, df
@@ -286,7 +253,9 @@ if __name__ == '__main__':
                'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 'fullsp2':'F1.0', 'fullsp3':'F1.0',
                'mcrank':'F2.0', 'disabled':'F1.0', 'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1.0'}
 
-    with SavWriter(config.explode_file, save_info['column_names'], save_info['types'], 
+    with SavWriter(config.explode_file, 
+                   save_info['column_names'], 
+                   save_info['types'], 
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignments'],
                    columnWidths = save_info['column_widths'],
