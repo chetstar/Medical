@@ -50,12 +50,12 @@ with open('alameda_county_zip_codes.json') as f:
     zips = json.load(f)
 
 def drop_summary_row(df):
-    #Code to delete the last row if its a summary row.
+    """Code to delete the last row if its a summary row."""
     df.drop(df.index[-1], inplace = True)
     return df
 
 def drop_cinless_rows(df):
-    #Drop all rows without a CIN.
+    """Drop all rows without a CIN."""
     start_time = datetime.datetime.now()
     rows_before_drop = len(df)
     df.dropna(subset = ['cin'], inplace = True)
@@ -65,7 +65,7 @@ def drop_cinless_rows(df):
     return df
 
 def drop_duplicate_rows(df):
-    #Remove duplicate rows keeping the row with the best eligibilityStatus. 
+    """Remove duplicate rows keeping the row with the best eligibilityStatus."""
     start_time = datetime.datetime.now()
     start_row_count = len(df)
     df.sort(['cin','eligibilitystatus'], inplace = True)
@@ -83,6 +83,8 @@ def fuzzy_cutoff_match(city_name, city_name_list):
         return city_name
 
 def fix_city_names(df, city_name_list, city_map, zips):
+    """If a cityname is not in the city name list and the zipcode is in zips or is blank and the 
+    state is CA or is blank use fuzzy matching to fix the spelling of the cityname."""
     start_time = datetime.datetime.now()
     df['city'] = df['city'].replace(city_map)
     city_mask = -df['city'].isin(city_name_list) #Negate so we only get cities not in list.
@@ -102,32 +104,31 @@ def make_bday_column(df):
     df['bday'] = pd.to_datetime(df['year'] + df['month'] + df['day'], '%Y%m%d')
     return df
 
-def make_hcplantext_column(df):
-    #create hcplantext column and populate with hcpcode data.
+def make_hcplantext_column(df, hcpcode_map):
+    """Create hcplantext column and populate with hcpcode data."""
     df['hcplantext'] = df['hcpcode'].map(hcpcode_map)
     return df
 
-def make_language_column(df):
-    #create language column and populate with the codes from lang.
+def make_language_column(df, language_map):
+    """Create language column and populate with the codes from lang."""
     df['language'] = df['lang'].map(language_map)
     return df
 
-def make_ethnicity_column(df):
-    #create ethnicity column and populate with codes from race.
+def make_ethnicity_column(df, ethnicity_map):
+    """Create ethnicity column and populate with codes from race."""
     df['ethnicity'] = df['race'].map(ethnicity_map)
     return df
 
-def make_region_column(df):
-    #create region and populate by matching citynames to the region they're in.
+def make_region_column(df, region_map):
+    """Create region and populate by matching citynames to the region they're in."""
     df['region'] = df['city'].map(region_map)
     return df
 
-def fix_hcpstatus(df):
-    #If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
-    #HCplanText to "z No Plan"
+def fix_hcplantext(df):
+    """If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
+    HCplanText to 'z No Plan'"""
     df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
-    df['hcplantext'].fillna('z No Plan')
-    df = fix_hcpstatus(df)
+    df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
     return df
 
 def format_string_columns(df, save_info):
@@ -156,26 +157,31 @@ if __name__ == '__main__':
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
 
-    formats = {'ssn':'N9', 'zip':'N5', 'planid':'F3.0', 'govt':'F1.0', 'bday':'SDATE10',
+    formats = {'ssn':'N9.0', 'zip':'N5.0', 'planid':'F3.0', 'govt':'F1.0', 'bday':'SDATE10',
                'calendar':'MOYR6'} 
 
-    with SavWriter(config.uncut_file, save_info['column_names'], save_info['types'], 
+    with SavWriter(config.uncut_file, 
+                   save_info['column_names'], 
+                   save_info['types'], 
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignment'],
-                   columnWidths = save_info['column_width'], ioUtf8 = True) as writer:
+                   columnWidths = save_info['column_width'],
+                   formats = formats) as writer:
 
         #Proccess Medi-Cal data.
         df = drop_summary_row(df) 
         df = drop_cinless_rows(df) 
         df = drop_duplicate_rows(df) 
         df = fix_city_names(df, city_name_list, city_map, zips)
-        df = make_hcplantext_column(df) 
-        df = make_language_column(df)
-        df = make_ethnicity_column(df)
-        df = make_region_column(df)
+        df = make_hcplantext_column(df, hcpcode_map)
+        df = make_language_column(df, language_map)
+        df = make_ethnicity_column(df, ethnicity_map)
+        df = make_region_column(df, region_map)
         df = format_string_columns(df, save_info)
         df = make_calendar_column(df) 
-        df = make_bday_column(df) 
+        df = make_bday_column(df)
+        df = fix_hcplantext(df)
+
         writer.writerows(df[save_info['column_names']].values)
 
     print('Program finished in: {}.'.format(str(datetime.datetime.now()-program_start_time)))    
