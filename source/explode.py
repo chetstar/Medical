@@ -39,11 +39,6 @@ def make_medsmonth_column(df):
     df.loc[:,'medsmonth'] = medsmonth
     return df
 
-def format_date_columns(df):
-    df['medsmonth'] = df['medsmonth'].map(lambda x: writer.spssDateTime(x, '%m%Y'))
-    df['calendar'] = df['calendar'].map(lambda x: writer.spssDateTime(x, '%m%Y'))
-    return df
-
 def wide_to_long_by_month(df, stubs):
     wide_start = datetime.now()
     #print('There are {} rows prior to wide_to_long by month'.format(len(df)))
@@ -60,7 +55,6 @@ def drop_useless_rows(df):
     medicare = df['medicarestatus'].notnull() & (df['medicarestatus'] != '990')
     keep_mask = ( medicare | mcrank )
     df = df[keep_mask]
-    #print('Ineligible rows dropped in: ', str(datetime.now()-elig_drop_start))
     return df
 
 def spss_date(row):
@@ -244,11 +238,9 @@ def process_chunk(chunk):
     
     df = long_to_wide_by_aidcode(df, dw)
 
-    #df = drop_useless_rows(df)
     df = make_hcplantext_column(df)
     df = rename_columns_for_saving(df)
     df = format_string_columns(df, save_info)
-    #df = format_date_columns(df)
 
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
     return chunk_number, df
