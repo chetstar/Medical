@@ -1,0 +1,46 @@
+{"column_names":
+[
+"cin",
+"county_case_id",
+"county_case_aidcode",
+"county_case_serial_number",
+"county_case_budget_unit",
+"county_case_person_number"
+],
+"measure_levels":
+{
+"cin": "nominal",
+"county_case_id": "nominal",
+"county_case_aidcode": "nominal",
+"county_case_serial_number": "nominal",
+"county_case_budget_unit": "nominal",
+"county_case_person_number": "nominal"
+},
+"alignments":
+{
+"cin": "left",
+"county_case_id": "left",
+"county_case_aidcode": "left",
+"county_case_serial_number": "left",
+"county_case_budget_unit": "left",
+"county_case_person_number": "left"
+},
+"types":
+{
+"cin": 9,
+"county_case_id": 12,
+"county_case_aidcode": 2,
+"county_case_serial_number": 7,
+"county_case_budget_unit": 1,
+"county_case_person_number": 2
+},
+"column_widths":
+{
+"cin": 10,
+"county_case_id": 13,
+"county_case_aidcode": 3,
+"county_case_serial_number": 8,
+"county_case_budget_unit": 2,
+"county_case_person_number": 3
+}
+}
