@@ -49,32 +49,6 @@ with open(config.city_names) as f:
 with open('alameda_county_zip_codes.json') as f:
     zips = json.load(f)
 
-def drop_summary_row(df):
-    """Code to delete the last row if its a summary row."""
-    df.drop(df.index[-1], inplace = True)
-    return df
-
-def drop_cinless_rows(df):
-    """Drop all rows without a CIN."""
-    start_time = datetime.datetime.now()
-    rows_before_drop = len(df)
-    df.dropna(subset = ['cin'], inplace = True)
-    rows_dropped = rows_before_drop - len(df)
-    elapsed_time = datetime.datetime.now()-start_time
-    print('{0} CIN-less rows dropped in: {1}'.format(rows_dropped, elapsed_time))
-    return df
-
-def drop_duplicate_rows(df):
-    """Remove duplicate rows keeping the row with the best eligibilityStatus."""
-    start_time = datetime.datetime.now()
-    start_row_count = len(df)
-    df.sort(['cin','eligibilitystatus'], inplace = True)
-    df.drop_duplicates(subset = 'cin', inplace = True)
-    rows_dropped = start_row_count - len(df)
-    elapsed_time = datetime.datetime.now()-start_time
-    print('{0} duplicate rows dropped in: {1}'.format(rows_dropped, elapsed_time))
-    return df
-
 def fuzzy_cutoff_match(city_name, city_name_list):
     result = process.extractOne(city_name, city_name_list)
     if result[1] >= 40:
@@ -122,13 +96,6 @@ def make_ethnicity_column(df, ethnicity_map):
 def make_region_column(df, region_map):
     """Create region and populate by matching citynames to the region they're in."""
     df['region'] = df['city'].map(region_map)
-    return df
-
-def fix_hcplantext(df):
-    """If someone has an HCplanText but their HCPstatus is such that it is invalidated, change
-    HCplanText to 'z No Plan'"""
-    df.ix[df.hcpstatus.isin(["00","10","09","19","40","49","S0","S9"]),'hcplantext'] = "z No Plan"
-    df['hcplantext'] = df['hcplantext'].fillna('z No Plan')
     return df
 
 def format_string_columns(df, save_info):
