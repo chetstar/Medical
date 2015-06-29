@@ -298,7 +298,7 @@ if __name__ == '__main__':
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignments'],
                    columnWidths = save_info['column_widths'],
-                   formats = formats) as writer:
+                   formats = formats, ioUtf8 = False) as writer:
 
         pool = mp.Pool(8)
         for i, df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
