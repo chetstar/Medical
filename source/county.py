@@ -13,6 +13,10 @@ if __name__ == "__main__":
     
     medical_file = common.set_medical_file_location(sys.argv)
 
+    df = pd.read_fwf(medical_file, colspecs = [(243,247),(247,249)], names = ['year', 'month'],
+                     nrows = 1, converters = {'year':str, 'month':str} )
+    save_file_name = config.county_path + df['year'][0] + '.' + df['month'][0] + '.county.sav'
+
     #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
     with open(config.county_load_info) as fp:
         column_names, column_specifications = zip(*json.load(fp))
@@ -32,7 +36,7 @@ if __name__ == "__main__":
     with open(config.county_save_info) as fp:
         save_info = json.load(fp)
 
-    with SavWriter(config.county_file, 
+    with SavWriter(save_file_name, 
                    save_info['column_names'], 
                    save_info['types'], 
                    measureLevels = save_info['measure_levels'],

@@ -41,7 +41,7 @@ city_names = './city_names.json'
 ### Config data for county.py ###
 
 #Location to save CountyCase.sav or alternate name.
-county_file = ''
+county_path = ''
 
 #Location of json file with information loading data from Medi-Cal fixed widht file.
 county_load_info = './county_load_info.json'
