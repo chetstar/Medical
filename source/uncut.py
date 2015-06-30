@@ -104,28 +104,22 @@ if __name__ == '__main__':
     with open(config.uncut_load_info) as f:
         column_names, column_specifications = zip(*json.load(f))
 
-    #All columns should be brought in as strings.
-    converters = {name:str for name in column_names}
-
     df = pd.read_fwf(medical_file,
                      colspecs = column_specifications,
                      header = None,
                      names = column_names, 
-                     converters = converters )
+                     converters = {name:str for name in column_names} )
 
     with open('uncut_columns_save_info.json') as fp:
         save_info = json.load(fp)
-
-    formats = {'ssn':'N9.0', 'zip':'N5.0', 'planid':'F3.0', 'govt':'F1.0', 'bday':'SDATE10',
-               'calendar':'MOYR6'} 
 
     with SavWriter(config.uncut_file, 
                    save_info['column_names'], 
                    save_info['types'], 
                    measureLevels = save_info['measure_levels'],
-                   alignments = save_info['alignment'],
-                   columnWidths = save_info['column_width'],
-                   formats = formats) as writer:
+                   alignments = save_info['alignments'],
+                   columnWidths = save_info['column_widths'],
+                   formats = save_info['formats']) as writer:
 
         #Proccess Medi-Cal data.
         df = common.drop_summary_row(df) 

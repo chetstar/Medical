@@ -221,15 +221,12 @@ if __name__ == '__main__':
     with open(config.explode_load_info) as f:
         column_names, column_specifications = zip(*json.load(f))
 
-    #All columns should be brought in as strings.
-    converters = {name:str for name in column_names}
-
     #Create an iterator to read chunks of the fixed width Medi-Cal file.
     chunksize = config.chunk_size
     chunked_data_iterator = pd.read_fwf(medical_file,
                                         colspecs = column_specifications, 
                                         names = column_names, 
-                                        converters = converters, 
+                                        converters = {name:str for name in column_names}, 
                                         iterator = True,
                                         chunksize = chunksize)
 
