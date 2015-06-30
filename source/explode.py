@@ -1,18 +1,13 @@
 import json
 from datetime import datetime
 import multiprocessing as mp
-import mmap
+import sys
 
 import pandas as pd
 from savReaderWriter import SavWriter
 
 import common
 import config
-
-#Aidcodes that indicate specific statuses.
-ssicodes = ['10','20','60']
-ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
-ihsscodes = ['2L','2M','2N']
 
 def make_duplicates_bitmask(df):
     """Use CIN and eligibility status for entire file to make bitmask
@@ -211,9 +206,16 @@ if __name__ == '__main__':
 
     start_time = datetime.now()
 
+    medical_file = common.set_medical_file_location(sys.argv)
+
     #Create bitmask used to remove duplicate rows and rows without a CIN.
-    df = pd.read_fwf(config.medical_file,colspecs = [(209,218),(255,258)], names = ['cin','elig'])
+    df = pd.read_fwf(medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
     dupemask = make_duplicates_bitmask(df)
+
+    #Aidcodes that indicate specific statuses.
+    ssicodes = ['10','20','60']
+    ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
+    ihsscodes = ['2L','2M','2N']
 
     #column_names and column_specifications are used to read in the Medi-Cal file. 
     with open(config.explode_load_info) as f:
@@ -224,7 +226,7 @@ if __name__ == '__main__':
 
     #Create an iterator to read chunks of the fixed width Medi-Cal file.
     chunksize = config.chunk_size
-    chunked_data_iterator = pd.read_fwf(config.medical_file,
+    chunked_data_iterator = pd.read_fwf(medical_file,
                                         colspecs = column_specifications, 
                                         names = column_names, 
                                         converters = converters, 
