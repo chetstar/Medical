@@ -9,17 +9,14 @@ from savReaderWriter import SavWriter
 import common
 import config
 
-#Aidcodes that match to their respective categories.
+#Aidcodes that indicate specific statuses.
 ssicodes = ['10','20','60']
 ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
 ihsscodes = ['2L','2M','2N']
 
-aidcodes = ['aidcodesp0', 'aidcodesp1', 'aidcodesp2', 'aidcodesp3']
-eligibilities = ['eligibilitystatussp0', 'eligibilitystatussp1', 
-                 'eligibilitystatussp3', 'eligibilitystatussp3']
-
 def make_duplicates_bitmask(df):
-    #Bring in CINs and eligibility status for the entire file to identify duplicate rows.
+    """Use CIN and eligibility status for entire file to make bitmask
+    of duplicate and cinless rows."""
     cinless = df['cin'].isnull()
     df = df.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
     dupemask = df.duplicated(subset = ['cin'])
@@ -27,13 +24,13 @@ def make_duplicates_bitmask(df):
     return dropmask
 
 def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
-    #Drop duplicate rows and rows without CINs.
+    """Drop duplicate rows and rows without CINs."""
     df.index = range(chunknum*chunksize, chunknum*chunksize + len(df.index))
     df = df[dupemask[df.index]]
     return df
 
 def make_medsmonth_column(df):
-    #Medsmonth is the most recent month with eligibility data in the file.
+    """Medsmonth is the most recent month with eligibility data in the file."""
     month_time = datetime(int(df['eligyear'][df.index[0]]), int(df['eligmonth'][df.index[0]]), 1)
     zero_time = datetime(1582,10,14) #0 in SPSS time system.
     medsmonth = int((month_time - zero_time).total_seconds())
@@ -41,26 +38,24 @@ def make_medsmonth_column(df):
     return df
 
 def wide_to_long_by_month(df, stubs):
-    wide_start = datetime.now()
-    #print('There are {} rows prior to wide_to_long by month'.format(len(df)))
     df = pd.wide_to_long(df, stubs, 'cin', 'j')
     df = df.reset_index()
-    #print('Wide to long finished in: ', str(datetime.now()-wide_start))
-    #print('There are {} rows after wide_to_long by month'.format(len(df)))
     return df
 
 def spss_date(row):
+    """Create an SPSS format date, which is the number of seconds since October 14, 1582."""
     zero_time = datetime(1582,10,14) #0 in SPSS time system.
     time_to_convert = datetime(int(row['eligyear']),int(row['eligmonth']),1)
     return int((time_to_convert - zero_time).total_seconds())
 
 def make_calendar_column(df):
-    #df['calendar'] = df['eligmonth']+df['eligyear']
+    """Create a calendar column in SPSS date format using 'eligyear' and 'eligmonth'"""
     df['calendar'] = df.apply(spss_date, axis = 1)
     return df
    
 def wide_to_long_by_aidcode(df):
-    aidcode_stubs = ['aidcode','respcounty','eligibilitystatus','full','fosterx','disabledx','ffp']
+    aidcode_stubs = ['aidcode', 'respcounty', 'eligibilitystatus', 'full',
+                     'fosterx', 'disabledx', 'ffp']
     cols_to_keep= [col for col in df.columns for stub in aidcode_stubs if col.startswith(stub)]
     cols_to_keep.extend(['cin', 'calendar'])
     dw = df[cols_to_keep].copy()
@@ -87,8 +82,8 @@ def make_foster_bitmask(dw):
     return dw['fosterx'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
 
 def mcrank(dw, elig, local, covered):
-    mcrank_start = datetime.now()
-    #Create Medi-Cal ranks. Done in this order so worse ranks don't overwrite better ones.
+    """Create Medi-Cal ranks."""
+    #Done in this order so worse ranks don't overwrite better ones.
     dw['mcrank'] = ((dw['aidcode'].notnull()) & (dw['ffp'] >= 1)).map({True:13})
     dw.loc[elig,'mcrank'] = dw['ffp'][elig].map({100:10, 65:11, 50:12})
     dw.loc[(elig & local), 'mcrank'] = dw['ffp'][elig & local].map({100:7, 65:8, 50:9})
@@ -98,12 +93,12 @@ def mcrank(dw, elig, local, covered):
     return dw
 
 def keep_best_mcrank(dw):
-    #Groupby cin and calendar and keep only the row with the best mcrank for each group.
+    """Groupby cin and calendar and keep only the row with the best mcrank for each group."""
     dw = dw.sort('mcrank', ascending = True).groupby(['cin', 'calendar']).first()
     return dw
 
 def make_primary_codes(dw):
-    #Set primary_aid_code equal to aidcode and eligibility_county_code equal to respcounty.
+    """Set primary_aid_code equal to aidcode and eligibility_county_code equal to respcounty."""
     dw['primary_aid_code'] = dw['aidcode']
     dw['eligibility_county_code'] = dw['respcounty']
     return dw
@@ -117,43 +112,41 @@ def make_foster_column(dw, elig, foster):
     return dw
 
 def long_to_wide_by_aidcode(df, dw):
-    #Merge the columns we want to keep from the long_by_aidcode dataframe (dw) back into df.
+    """Merge the columns we want to keep from the long_by_aidcode dataframe (dw) back into df."""
     dw = dw.set_index('id')
-    cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank', 'disabled', 'foster',
-                     'ccsaidcode', 'ihssaidcode', 'ssi', 'retromc', 'socmc']
+    cols_to_merge = ['primary_aid_code', 'eligibility_county_code', 'mcrank', 'disabled', 
+                     'foster', 'ccsaidcode', 'ihssaidcode', 'ssi', 'retromc', 'socmc']
     df = pd.merge(df, dw[cols_to_merge], how = 'left', left_index = True, right_index = True) 
     return df
 
 def make_retromc_column(dw):
-    #If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1. 
+    """If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1."""
     dw['retromc'] = dw['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})    
     return dw
 
-def make_ssi_column(dw):
-    #If any aidcode in row is in ssicodes set ssi to '1'
+def make_ssi_column(dw, ssicodes):
+    """If any aidcode in row is in ssicodes set ssi to '1'."""
     dw['ssi'] = dw['aidcode'].isin(ssicodes).map({True:'1'})
     return dw
 
-def make_ccsaidcode_column(dw):
-    #If any aidcode in row is in ccscodes set ccsaidcode to '1'.
+def make_ccsaidcode_column(dw, ccscodes):
+    """If any aidcode in row is in ccscodes set ccsaidcode to '1'."""
     dw['ccsaidcode'] = dw['aidcode'].isin(ccscodes).map({True:'1'}).reindex(
         index = dw.index, fill_value = None)
     return dw
 
-def make_ihssaidcode_column(dw):
-    #If any aidcode in row is in ihsscodes set ihssaidcode to '1'.
+def make_ihssaidcode_column(dw, ihsscodes):
+    """If any aidcode in row is in ihsscodes set ihssaidcode to '1'."""
     dw['ihssaidcode'] = dw['aidcode'].isin(ihsscodes).map({True:'1'})
     return dw
 
 def make_socmc_column(dw):
-    #If the last character of any eligibility status in row is 1, set socmc to '1'.
+    """If the last character of any eligibility status in row is 1, set socmc to '1'."""
     dw['socmc'] = dw['eligibilitystatus'].dropna().str[-1].astype(int).eq(1).map({True:'1'})
-    #dw['socmc'] = (dw[eligibilities].apply(lambda x: x.dropna().str[-1].astype(int))).\
-    #              eq(1,axis=0).any(axis = 1).map({True:'1'})
     return dw
 
 def merge_aidcode_info(df, aidcode_info):
-    #Merge in aidcode based info.
+    """Merge in aidcode based info: foster, disabled, full, ffp."""
     df = pd.merge(df, aidcode_info, how = 'left', left_on = 'aidcodesp0', 
                   right_on = 'xaidcode', suffixes = ('','sp0'))
     df = pd.merge(df, aidcode_info, how = 'left', left_on = 'aidcodesp1', 
@@ -162,8 +155,8 @@ def merge_aidcode_info(df, aidcode_info):
                   right_on = 'xaidcode', suffixes = ('','sp2'))
     df = pd.merge(df, aidcode_info, how = 'left', left_on = 'aidcodesp3', 
                   right_on = 'xaidcode', suffixes = ('','sp3'))
-    df = df.rename(columns = {'full':'fullsp0', 'disabledx':'disabledxsp0', 'fosterx':'fosterxsp0',
-                              'ffp':'ffpsp0'})
+    df = df.rename(columns = {'full':'fullsp0', 'disabledx':'disabledxsp0', 
+                              'fosterx':'fosterxsp0','ffp':'ffpsp0'})
     return df
 
 def rename_columns_for_saving(df):
@@ -174,8 +167,10 @@ def rename_columns_for_saving(df):
     return df
 
 def process_chunk(chunk):
-    chunk_number, df = chunk
+
     chunkstart = datetime.now()
+
+    chunk_number, df = chunk
 
     df = drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = make_medsmonth_column(df)
@@ -198,9 +193,9 @@ def process_chunk(chunk):
     dw = make_disabled_column(dw, elig, disabled)
     dw = make_foster_column(dw, elig, foster)
     dw = make_retromc_column(dw)
-    dw = make_ssi_column(dw)
-    dw = make_ccsaidcode_column(dw)
-    dw = make_ihssaidcode_column(dw)
+    dw = make_ssi_column(dw, ssicodes)
+    dw = make_ccsaidcode_column(dw, ccscodes)
+    dw = make_ihssaidcode_column(dw, ihsscodes)
     dw = make_socmc_column(dw)
     
     df = long_to_wide_by_aidcode(df, dw)
@@ -216,7 +211,8 @@ if __name__ == '__main__':
 
     start_time = datetime.now()
 
-    df = pd.read_fwf(config.medical_file,colspecs = [(209,218),(255,258)],names = ['cin','elig'])
+    #Create bitmask used to remove duplicate rows and rows without a CIN.
+    df = pd.read_fwf(config.medical_file,colspecs = [(209,218),(255,258)], names = ['cin','elig'])
     dupemask = make_duplicates_bitmask(df)
 
     #column_names and column_specifications are used to read in the Medi-Cal file. 
@@ -225,9 +221,9 @@ if __name__ == '__main__':
 
     #All columns should be brought in as strings.
     converters = {name:str for name in column_names}
-    #Create an iterator to read 10000 line chunks of the fixed width Medi-Cal file.
-    chunksize = config.chunk_size
 
+    #Create an iterator to read chunks of the fixed width Medi-Cal file.
+    chunksize = config.chunk_size
     chunked_data_iterator = pd.read_fwf(config.medical_file,
                                         colspecs = column_specifications, 
                                         names = column_names, 
@@ -249,9 +245,10 @@ if __name__ == '__main__':
         save_info = json.load(f)
 
     formats = {'calendar':'MOYR6', 'medsmonth':'MOYR6', 'ffp':'F3.0', 'ffpsp1':'F3.0', 
-               'ffpsp2':'F3.0', 'ssi':'F1.0', 'eligibility_year':'F4.0', 'eligibility_month':'F2.0',
-               'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 'fullsp2':'F1.0', 'fullsp3':'F1.0',
-               'mcrank':'F2.0', 'disabled':'F1.0', 'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1.0'}
+               'ffpsp2':'F3.0', 'ssi':'F1.0', 'eligibility_year':'F4.0', 
+               'eligibility_month':'F2.0', 'ffpsp3':'F3.0', 'full':'F1.0', 'fullsp1':'F1.0', 
+               'fullsp2':'F1.0', 'fullsp3':'F1.0', 'mcrank':'F2.0', 'disabled':'F1.0', 
+               'foster':'F1.0', 'retroMC':'F1.0', 'socmc':'F1.0'}
 
     with SavWriter(config.explode_file, 
                    save_info['column_names'], 
@@ -259,9 +256,9 @@ if __name__ == '__main__':
                    measureLevels = save_info['measure_levels'],
                    alignments = save_info['alignments'],
                    columnWidths = save_info['column_widths'],
-                   formats = formats, ioUtf8 = False) as writer:
+                   formats = formats) as writer:
 
-        pool = mp.Pool(8)
+        pool = mp.Pool(mp.cpu_count()-1)
         for i, df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
             print('Writing chunk {}.'.format(i))
             writer.writerows(df[save_info['column_names']].values)
