@@ -162,6 +162,12 @@ def rename_columns_for_saving(df):
                               'ffpsp0':'ffp',})
     return df
 
+def is_nan(value):
+    try:
+        return np.isnan(value)
+    except TypeError:
+        return False
+
 def process_chunk(chunk):
 
     chunkstart = datetime.now()
@@ -201,7 +207,7 @@ def process_chunk(chunk):
     #df = common.format_string_columns(df, save_info)
 
     values = df[save_info['column_names']].values
-    values = [[item if item is not np.nan else None for item in row] for row in values]
+    values = [[item if not is_nan(item) else None for item in row] for row in values]
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
     return chunk_number, values
 
