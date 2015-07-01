@@ -5,7 +5,6 @@ import sys
 
 import pandas as pd
 from savReaderWriter import SavWriter
-import numpy as np
 
 import common
 import config
@@ -162,12 +161,6 @@ def rename_columns_for_saving(df):
                               'ffpsp0':'ffp',})
     return df
 
-def is_nan(value):
-    try:
-        return np.isnan(value)
-    except TypeError:
-        return False
-
 def process_chunk(chunk):
 
     chunkstart = datetime.now()
@@ -204,12 +197,10 @@ def process_chunk(chunk):
 
     df = common.make_hcplantext_column(df)
     df = rename_columns_for_saving(df)
-    #df = common.format_string_columns(df, save_info)
+    df = common.format_string_columns(df, save_info)
 
-    values = df[save_info['column_names']].values
-    values = [[item if not is_nan(item) else None for item in row] for row in values]
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
-    return chunk_number, values
+    return chunk_number, df
 
 if __name__ == '__main__':
 
@@ -263,7 +254,7 @@ if __name__ == '__main__':
         pool = mp.Pool(mp.cpu_count()-1)
         for i, df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
             print('Writing chunk {}.'.format(i))
-            writer.writerows(df)
+            writer.writerows(df[save_info['column_names']].values)
         pool.close()
         pool.join()
 
