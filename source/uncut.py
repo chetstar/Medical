@@ -122,18 +122,18 @@ if __name__ == '__main__':
                    formats = save_info['formats']) as writer:
 
         #Proccess Medi-Cal data.
-        df = common.drop_summary_row(df) 
+        df = common.drop_summary_row(df)
         df = common.drop_cinless_rows(df) 
-        df = drop_duplicate_rows(df) 
+        df = drop_duplicate_rows(df)
         df = fix_city_names(df, city_name_list, city_map, zips)
         df = common.make_hcplantext_column(df)
         df = make_language_column(df, language_map)
         df = make_ethnicity_column(df, ethnicity_map)
         df = make_region_column(df, region_map)
         df = common.format_string_columns(df, save_info)
-        df = make_calendar_column(df) 
+        df = make_calendar_column(df)
         df = make_bday_column(df)
 
         writer.writerows(df[save_info['column_names']].values)
 
-    print('Program finished in: {}.'.format(str(datetime.datetime.now()-program_start_time)))    
+    print('Program finished in: {}.'.format(str(datetime.datetime.now()-program_start_time)))
