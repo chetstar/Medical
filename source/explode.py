@@ -200,8 +200,10 @@ def process_chunk(chunk):
     df = rename_columns_for_saving(df)
     #df = common.format_string_columns(df, save_info)
 
+    values = df[save_info['column_names']].values
+    values = [[item if item is not np.nan else None for item in row] for row in values]
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
-    return chunk_number, df
+    return chunk_number, values
 
 if __name__ == '__main__':
 
@@ -255,12 +257,7 @@ if __name__ == '__main__':
         pool = mp.Pool(mp.cpu_count()-1)
         for i, df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
             print('Writing chunk {}.'.format(i))
-            values = df[save_info['column_names']].values
-            for row in values:
-                for item in row:
-                    if item is np.nan:
-                        item = None
-            writer.writerows(values)
+            writer.writerows(df)
         pool.close()
         pool.join()
 
