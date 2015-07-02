@@ -199,6 +199,8 @@ def process_chunk(chunk):
     df = rename_columns_for_saving(df)
     df = common.format_string_columns(df, save_info)
 
+    df = df[save_info['column_names']].values
+
     print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
     return chunk_number, df
 
@@ -254,7 +256,7 @@ if __name__ == '__main__':
         pool = mp.Pool(mp.cpu_count()-1)
         for i, df in pool.imap_unordered(process_chunk, enumerate(chunked_data_iterator), 1):
             print('Writing chunk {}.'.format(i))
-            writer.writerows(df[save_info['column_names']].values)
+            writer.writerows(df)
         pool.close()
         pool.join()
 
