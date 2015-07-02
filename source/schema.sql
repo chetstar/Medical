@@ -13,7 +13,7 @@ CREATE TABLE "client_eligibility_status" (
        CONSTRAINT eligibility_status_FK_responsible_county REFERENCES county_codes (county_code)
        		  ON DELETE RESTRICT,
 );
-
+/*
 CREATE TABLE "client_attributes" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT CHECK attributes_cin_length (char_length(cin) <= 10),
@@ -25,7 +25,8 @@ CREATE TABLE "client_attributes" (
        "language" TEXT, --enum
        "gender" TEXT,
 );
-
+*/
+/*
 CREATE TABLE "client_addresses" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT CHECK addresses_cin_length (char_length(cin) <= 10),
@@ -37,12 +38,18 @@ CREATE TABLE "client_addresses" (
        "zip" TEXT,
        "source" TEXT,
 );
+*/
 
 CREATE TABLE "aidcodes" (
-       "id" SMALL SERIAL PRIMARY KEY,
-       "aidcode" TEXT CHECK aidcodes_aidcode_length (char_length(aidcode) < 2),
+       "id" SMALLSERIAL PRIMARY KEY,
+       "aidcode" TEXT 
+       CONSTRAINT aidcodes_CK_aidcode_length CHECK (char_length(aidcode) <= 2),
 );
 
-
+CREATE TABLE "county_codes" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "county_code" TEXT,
+       CONSTRAINT county_codes_CK_county_code CHECK (char_length(county_code) == 2),
+);
 
        
