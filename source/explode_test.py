@@ -32,8 +32,8 @@ class TestExplode(unittest.TestCase):
          *Gracefully deal with NaN values.
         """
 
-        df = pd.DataFrame({'eligibilitystatus':[None, '001', '555', '600', '08B', None]})
-        desired_result = pd.Series([False,True,True,False,True,False])
+        df = pd.DataFrame({'eligibilitystatus':[None, '001', '555', '600', '08B', None, '990']})
+        desired_result = pd.Series([False,True,True,False,True,False,False])
         actual_result = explode.make_eligibility_bitmask(df)
 
         try:
