@@ -1,3 +1,4 @@
+import argparse
 import json
 from datetime import datetime
 import multiprocessing as mp
@@ -61,7 +62,7 @@ def wide_to_long_by_aidcode(df):
 
 def make_eligibility_bitmask(dw):
     elig = dw['eligibilitystatus'].dropna().str[0].astype(int).le(5).reindex(
-        index = dw.index, fill_value = False)
+        index = dw.index, fill_value = False) 
     return elig
 
 def make_local_bitmask(dw):
@@ -100,6 +101,7 @@ def make_primary_codes(dw):
 
 def make_disabled_column(dw, elig, disabled):
     dw['disabled'] = (elig & disabled).map({True:1})
+    #dw['disabled'] = dw.groupby(['cin','calendar']).max()
     return dw
 
 def make_foster_column(dw, elig, foster):
@@ -182,7 +184,7 @@ def process_chunk(chunk):
     foster = make_foster_bitmask(dw)
 
     dw = mcrank(dw, elig, local, covered)
-    dw = keep_best_mcrank(dw)
+    dw = keep_best_mcrank(dw)    
 
     dw = make_primary_codes(dw)
     dw = make_disabled_column(dw, elig, disabled)
@@ -192,7 +194,7 @@ def process_chunk(chunk):
     dw = make_ccsaidcode_column(dw, ccscodes)
     dw = make_ihssaidcode_column(dw, ihsscodes)
     dw = make_socmc_column(dw)
-    
+
     df = long_to_wide_by_aidcode(df, dw)
 
     df = common.make_hcplantext_column(df)
@@ -201,49 +203,11 @@ def process_chunk(chunk):
 
     df = df[save_info['column_names']].values
 
-    print('Chunk {} finished in: {}'.format(chunk_number, str(datetime.now() - chunkstart)))
+    print('Chunk {} finished processing in: {}'.format(chunk_number, 
+                                                       str(datetime.now() - chunkstart)))
     return chunk_number, df
 
-if __name__ == '__main__':
-
-    start_time = datetime.now()
-
-    medical_file = common.set_medical_file_location(sys.argv)
-
-    #Create bitmask used to remove duplicate rows and rows without a CIN.
-    df = pd.read_fwf(medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
-    dupemask = make_duplicates_bitmask(df)
-
-    #Aidcodes that indicate specific statuses.
-    ssicodes = ['10','20','60']
-    ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
-    ihsscodes = ['2L','2M','2N']
-
-    #column_names and column_specifications are used to read in the Medi-Cal file. 
-    with open(config.explode_load_info) as f:
-        column_names, column_specifications = zip(*json.load(f))
-
-    #Create an iterator to read chunks of the fixed width Medi-Cal file.
-    chunksize = config.chunk_size
-    chunked_data_iterator = pd.read_fwf(medical_file,
-                                        colspecs = column_specifications, 
-                                        names = column_names, 
-                                        converters = {name:str for name in column_names}, 
-                                        iterator = True,
-                                        chunksize = chunksize)
-
-    #List of base names, or stubs, to use when doing wide to long by month.
-    stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitystatussp0',
-             'socamount', 'medicarestatus', 'hcpstatus', 'hcpcode', 'hcplantext', 'ohc',
-             'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 'aidcodesp2', 'respcountysp2',
-             'eligibilitystatussp2', 'aidcodesp3', 'respcountysp3', 'eligibilitystatussp3']
-
-    #Bring in file that matches aidcodes with other attributes: foster, disabled, full, ffp.
-    with open(config.aidcodes_file) as f:
-        aidcode_info = pd.read_csv(f, header = 0)
-
-    with open(config.explode_save_info) as f:
-        save_info = json.load(f)
+def multi_process_run(chunked_data_iterator):
 
     with SavWriter(config.explode_file, 
                    save_info['column_names'], 
@@ -259,6 +223,85 @@ if __name__ == '__main__':
             writer.writerows(df)
         pool.close()
         pool.join()
+
+def single_process_run(chunked_data_iterator):
+
+    with SavWriter(config.explode_file, 
+                   save_info['column_names'], 
+                   save_info['types'], 
+                   measureLevels = save_info['measure_levels'],
+                   alignments = save_info['alignments'],
+                   columnWidths = save_info['column_widths'],
+                   formats = save_info['formats']) as writer:
+
+        for i, chunk in enumerate(chunked_data_iterator):
+            chunk = (i, chunk)
+            writer.writerows(process_chunk(chunk)[1])
+
+def process_arguments():
+    parser = argparse.ArgumentParser(description='Process Medi-Cal File.')
+    parser.add_argument('infile', 
+                        nargs = '?',
+                        default = config.medical_file,
+                        type = argparse.FileType('r'),
+                        help = 'Location of Medi-Cal file to process.')
+    parser.add_argument('-o', '--outfile',
+                        nargs = '?',
+                        default = config.medical_file,
+                        type = argparse.FileType('w'),
+                        help = 'File name and path of output file.')
+    parser.add_argument('-s', '--single-process',
+                        action = 'store_true',
+                        help = 'Run in a single process. Default is multi-process.')
+    return parser.parse_args()
+
+if __name__ == '__main__':
+
+    start_time = datetime.now()
+    
+    #Parse command line arguments.
+    args = process_arguments()
+
+    #Create bitmask used to remove duplicate rows and rows without a CIN.
+    df = pd.read_fwf(args.infile, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
+    dupemask = make_duplicates_bitmask(df)
+
+    #Aidcodes that indicate specific statuses.
+    ssicodes = ['10','20','60']
+    ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
+    ihsscodes = ['2L','2M','2N']
+
+    #column_names and column_specifications are used to read in the Medi-Cal file. 
+    with open(config.explode_load_info) as f:
+        column_names, column_specifications = zip(*json.load(f))
+
+    #Create an iterator to read chunks of the fixed width Medi-Cal file.
+    chunksize = config.chunk_size
+    chunked_data_iterator = pd.read_fwf(args.infile,
+                                        colspecs = column_specifications, 
+                                        names = column_names, 
+                                        converters = {name:str for name in column_names}, 
+                                        iterator = True,
+                                        chunksize = chunksize)
+
+    #List of base names, or stubs, to use when doing wide to long by month.
+    stubs = ['eligyear', 'eligmonth', 'aidcodesp0', 'respcountysp0', 'eligibilitystatussp0',
+             'socamount', 'medicarestatus', 'hcpstatus', 'hcpcode', 'hcplantext', 'ohc',
+             'aidcodesp1', 'respcountysp1', 'eligibilitystatussp1', 'aidcodesp2', 'respcountysp2',
+             'eligibilitystatussp2', 'aidcodesp3', 'respcountysp3', 'eligibilitystatussp3']
+
+    #Load data that matches aidcodes with other attributes: foster, disabled, full, ffp.
+    with open(config.aidcodes_file) as f:
+        aidcode_info = pd.read_csv(f, header = 0)
+
+    #Load data used by SavWriter to set column attributes in SPSS.
+    with open(config.explode_save_info) as f:
+        save_info = json.load(f)
+
+    if args.single_process:
+        single_process_run(chunked_data_iterator)
+    else:
+        multi_process_run(chunked_data_iterator)
 
     print('Program finished in: ', str(datetime.now() - start_time))
 
