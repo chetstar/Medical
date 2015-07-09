@@ -184,7 +184,6 @@ def process_chunk(chunk):
     foster = make_foster_bitmask(dw)
 
     dw = mcrank(dw, elig, local, covered)
-    dw = keep_best_mcrank(dw)    
 
     dw = make_primary_codes(dw)
     dw = make_disabled_column(dw, elig, disabled)
@@ -195,6 +194,7 @@ def process_chunk(chunk):
     dw = make_ihssaidcode_column(dw, ihsscodes)
     dw = make_socmc_column(dw)
 
+    dw = keep_best_mcrank(dw)    
     df = long_to_wide_by_aidcode(df, dw)
 
     df = common.make_hcplantext_column(df)
@@ -209,7 +209,7 @@ def process_chunk(chunk):
 
 def multi_process_run(chunked_data_iterator):
 
-    with SavWriter(config.explode_file, 
+    with SavWriter(args.outfile, 
                    save_info['column_names'], 
                    save_info['types'], 
                    measureLevels = save_info['measure_levels'],
@@ -226,7 +226,7 @@ def multi_process_run(chunked_data_iterator):
 
 def single_process_run(chunked_data_iterator):
 
-    with SavWriter(config.explode_file, 
+    with SavWriter(args.outfile, 
                    save_info['column_names'], 
                    save_info['types'], 
                    measureLevels = save_info['measure_levels'],
@@ -246,8 +246,7 @@ def process_arguments():
                         type = argparse.FileType('r'),
                         help = 'Location of Medi-Cal file to process.')
     parser.add_argument('-o', '--outfile',
-                        nargs = '?',
-                        default = config.medical_file,
+                        default = config.explode_file,
                         type = argparse.FileType('w'),
                         help = 'File name and path of output file.')
     parser.add_argument('-s', '--single-process',
@@ -298,6 +297,7 @@ if __name__ == '__main__':
     with open(config.explode_save_info) as f:
         save_info = json.load(f)
 
+    #Run main in single or multi-process mode dependent on command line arguments.
     if args.single_process:
         single_process_run(chunked_data_iterator)
     else:
