@@ -101,11 +101,14 @@ def make_primary_codes(dw):
 
 def make_disabled_column(dw, elig, disabled):
     dw['disabled'] = (elig & disabled).map({True:1})
-    #dw['disabled'] = dw.groupby(['cin','calendar']).max()
+    dw.loc[:,'disabled'] = dw.join(dw.groupby(['cin','calendar']).max()['disabled'], 
+                                   on=['cin','calendar'], rsuffix='_r').loc[:,'disabled_r']
     return dw
 
 def make_foster_column(dw, elig, foster):
     dw['foster'] = (elig & foster).map({True:1})
+    dw.loc[:,'foster'] = dw.join(dw.groupby(['cin','calendar']).max()['foster'], 
+                                   on=['cin','calendar'], rsuffix='_r').loc[:,'foster_r']
     return dw
 
 def long_to_wide_by_aidcode(df, dw):
@@ -118,28 +121,37 @@ def long_to_wide_by_aidcode(df, dw):
 
 def make_retromc_column(dw):
     """If the last character of the primary_Aid_Code is 2,3, or 5 set RetroMC to 1."""
-    dw['retromc'] = dw['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})    
+    dw['retromc'] = dw['primary_aid_code'].dropna().str[-1].isin(['2','3','5']).map({True:1})
+    dw.loc[:,'retromc'] = dw.join(dw.groupby(['cin','calendar']).max()['retromc'], 
+                                   on=['cin','calendar'], rsuffix='_r').loc[:,'retromc_r']
     return dw
 
 def make_ssi_column(dw, ssicodes):
     """If any aidcode in row is in ssicodes set ssi to '1'."""
     dw['ssi'] = dw['aidcode'].isin(ssicodes).map({True:'1'})
+    dw.loc[:,'ssi'] = dw.join(dw.groupby(['cin','calendar']).max()['ssi'], 
+                              on=['cin','calendar'], rsuffix='_r').loc[:,'ssi_r']
     return dw
 
 def make_ccsaidcode_column(dw, ccscodes):
     """If any aidcode in row is in ccscodes set ccsaidcode to '1'."""
-    dw['ccsaidcode'] = dw['aidcode'].isin(ccscodes).map({True:'1'}).reindex(
-        index = dw.index, fill_value = None)
+    dw['ccsaidcode'] = dw['aidcode'].isin(ccscodes).map({True:'1'})
+    dw.loc[:,'ccsaidcode'] = dw.join(dw.groupby(['cin','calendar']).max()['ccsaidcode'], 
+                                     on=['cin','calendar'], rsuffix='_r').loc[:,'ccsaidcode_r']
     return dw
 
 def make_ihssaidcode_column(dw, ihsscodes):
     """If any aidcode in row is in ihsscodes set ihssaidcode to '1'."""
     dw['ihssaidcode'] = dw['aidcode'].isin(ihsscodes).map({True:'1'})
+    dw.loc[:,'ihssaidcode'] = dw.join(dw.groupby(['cin','calendar']).max()['ihssaidcode'], 
+                                      on=['cin','calendar'], rsuffix='_r').loc[:,'ihssaidcode_r']
     return dw
 
 def make_socmc_column(dw):
     """If the last character of any eligibility status in row is 1, set socmc to '1'."""
     dw['socmc'] = dw['eligibilitystatus'].dropna().str[-1].astype(int).eq(1).map({True:'1'})
+    dw.loc[:,'socmc'] = dw.join(dw.groupby(['cin','calendar']).max()['socmc'], 
+                                   on=['cin','calendar'], rsuffix='_r').loc[:,'socmc_r']
     return dw
 
 def merge_aidcode_info(df, aidcode_info):
@@ -208,7 +220,7 @@ def process_chunk(chunk):
     return chunk_number, df
 
 def multi_process_run(chunked_data_iterator):
-
+    """Process chunks in parallel."""
     with SavWriter(args.outfile, 
                    save_info['column_names'], 
                    save_info['types'], 
@@ -225,7 +237,7 @@ def multi_process_run(chunked_data_iterator):
         pool.join()
 
 def single_process_run(chunked_data_iterator):
-
+    """Process and write chunks serially."""
     with SavWriter(args.outfile, 
                    save_info['column_names'], 
                    save_info['types'], 
