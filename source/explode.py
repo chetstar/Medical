@@ -93,10 +93,10 @@ def keep_best_mcrank(dw):
     dw = dw.sort('mcrank', ascending = True).groupby(['cin', 'calendar']).first()
     return dw
 
-def make_primary_codes(dw):
+def make_primary_codes(dw, elig):
     """Set primary_aid_code equal to aidcode and eligibility_county_code equal to respcounty."""
-    dw['primary_aid_code'] = dw['aidcode']
-    dw['eligibility_county_code'] = dw['respcounty']
+    dw.loc[elig, 'primary_aid_code'] = dw['aidcode'][elig]
+    dw.loc[elig, 'eligibility_county_code'] = dw['respcounty'][elig]
     return dw
 
 def make_disabled_column(dw, elig, disabled):
@@ -197,7 +197,7 @@ def process_chunk(chunk):
 
     dw = mcrank(dw, elig, local, covered)
 
-    dw = make_primary_codes(dw)
+    dw = make_primary_codes(dw, elig)
     dw = make_disabled_column(dw, elig, disabled)
     dw = make_foster_column(dw, elig, foster)
     dw = make_retromc_column(dw)
