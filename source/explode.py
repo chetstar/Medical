@@ -243,11 +243,9 @@ def process_arguments():
     parser.add_argument('infile', 
                         nargs = '?',
                         default = config.medical_file,
-                        type = argparse.FileType('r'),
                         help = 'Location of Medi-Cal file to process.')
     parser.add_argument('-o', '--outfile',
                         default = config.explode_file,
-                        type = argparse.FileType('w'),
                         help = 'File name and path of output file.')
     parser.add_argument('-s', '--single-process',
                         action = 'store_true',
