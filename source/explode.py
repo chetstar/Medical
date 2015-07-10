@@ -6,6 +6,7 @@ import sys
 
 import pandas as pd
 from savReaderWriter import SavWriter
+import numpy as np
 
 import common
 import config
@@ -168,7 +169,13 @@ def merge_aidcode_info(df, aidcode_info):
                               'fosterx':'fosterxsp0','ffp':'ffpsp0'})
     return df
 
+def remove_dates(dw):
+    """Remove eligyear and eligmonth data if there is no primary aid code for that row."""
+    dw.loc[pd.notnull(dw.primary_aid_code), ['eligyear','eligmonth']] = np.nan
+    return dw
+
 def rename_columns_for_saving(df):
+    """Rename columns to match files created by spss."""
     df = df.rename(columns = {'eligibilitystatussp0':'eligibilitystatus', 'fullsp0':'full',
                               'respcountysp0':'respcounty', 'eligmonth':'eligibility_month', 
                               'eligyear':'eligibility_year', 'aidcodesp0':'aidcode',
@@ -206,8 +213,9 @@ def process_chunk(chunk):
     dw = make_ihssaidcode_column(dw, ihsscodes)
     dw = make_socmc_column(dw)
 
-    dw = keep_best_mcrank(dw)    
+    dw = keep_best_mcrank(dw)
     df = long_to_wide_by_aidcode(df, dw)
+    df = remove_dates(df)
 
     df = common.make_hcplantext_column(df)
     df = rename_columns_for_saving(df)
