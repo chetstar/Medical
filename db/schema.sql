@@ -51,13 +51,14 @@ CREATE TABLE "aidcodes" (
        CONSTRAINT aidcodes_CK_aidcode_not_empty CHECK (aidcode <> ''),
        CONSTRAINT aidcodes_UQ_aidcode_unique UNIQUE (aidcode),
        CONSTRAINT aidcodes_CK_federal_financial_participation CHECK
-        (federal_financial_participation IN (0,50,65,100)),
+        (federal_financial_participation IN (0,50,65,100))
 );
 
 CREATE TABLE "county_codes" (
        "id" SMALLSERIAL PRIMARY KEY,
        "county_code" TEXT,
-       CONSTRAINT county_codes_CK_county_code CHECK (char_length(county_code) == 2),
+       "county_name" TEXT,
+       CONSTRAINT county_codes_CK_county_code CHECK (char_length(county_code) = 2)
 );
 
        

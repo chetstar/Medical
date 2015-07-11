@@ -9,7 +9,10 @@ Run:
 psql -f schema.sql
 
 Run:
-COPY aidcodes ( federal_financial_participation, aidcode, disabled, fully_covered, foster)
+COPY aidcodes (federal_financial_participation, aidcode, disabled, fully_covered, foster)
 FROM '/Users/irisweiss/greg/Medical/db/db_aidcodes.csv'
 WITH CSV HEADER;
 
+COPY county_codes (county_code, county_name)
+FROM '/Users/irisweiss/greg/Medical/db/db_county_codes.csv'
+WITH CSV;
