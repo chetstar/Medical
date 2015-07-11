@@ -1,18 +1,42 @@
+CREATE TABLE "aidcodes" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "aidcode" TEXT NOT NULL,
+       "federal_financial_participation" SMALLINT NOT NULL,
+       "fully_covered" BOOLEAN NOT NULL,
+       "disabled" BOOLEAN NOT NULL,
+       "foster" BOOLEAN NOT NULL,
+       CONSTRAINT aidcodes_CK_aidcode_length CHECK (char_length(aidcode) <= 2),
+       CONSTRAINT aidcodes_CK_aidcode_not_empty CHECK (aidcode <> ''),
+       CONSTRAINT aidcodes_UQ_aidcode_unique UNIQUE (aidcode),
+       CONSTRAINT aidcodes_CK_federal_financial_participation CHECK
+        (federal_financial_participation IN (0,50,65,100))
+);
+
+CREATE TABLE "county_codes" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "county_code" TEXT,
+       "county_name" TEXT,
+       CONSTRAINT county_codes_CK_county_code CHECK (char_length(county_code) = 2),
+       CONSTRAINT county_codes_UQ_county_code UNIQUE (county_code)
+);
+
 CREATE TABLE "client_eligibility_status" (
        "id" BIGSERIAL PRIMARY KEY,
-       "cin" TEXT,
-       "date" DATE,
-       "cardinal" SMALLINT,
+       "cin" TEXT NOT NULL,
+       "date" DATE NOT NULL,
+       "cardinal" SMALLINT NOT NULL, --eg. sp1,sp2,sp3 or no sp
        "aidcode" TEXT,
-       "eligibility_status" TEXT, --Still needs a constraint.
+       "eligibility_status" TEXT, --Still needs a constraint.(needs table of valid statuses)
        "responsible_county" TEXT,
        CONSTRAINT eligibility_status_CK_cin_length CHECK (char_length(cin) <= 10),
-       CONSTRAINT eligibility_status_CK_cardinal_size CHECK (cardinal < 4),
-       CONSTRAINT eligibility_status_FK_aidcode REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,
-       CONSTRAINT eligibility_status_UQ_cin_date UNIQUE (cin, "date"),
-       CONSTRAINT eligibility_status_FK_responsible_county REFERENCES county_codes (county_code)
-       		  ON DELETE RESTRICT,
+       CONSTRAINT eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
+       CONSTRAINT eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
+        REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,
+       CONSTRAINT eligibility_status_UQ_cin_date_cardinal UNIQUE (cin, "date", cardinal),
+       CONSTRAINT eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county) 
+        REFERENCES county_codes (county_code) ON DELETE RESTRICT
 );
+
 /*
 CREATE TABLE "client_attributes" (
        "id" BIGSERIAL PRIMARY KEY,
