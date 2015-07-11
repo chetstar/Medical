@@ -1,0 +1,15 @@
+Files:
+format_aidcodes.py - creates a db_aidcodes.csv formatted for copying into medical db.
+db_aidcodes.py - csv formatted for copying into medical db.
+schema.sql - schema file for medical db.
+
+How to setup medical db.
+
+Run: 
+psql -f schema.sql
+
+Run:
+COPY aidcodes ( federal_financial_participation, aidcode, disabled, fully_covered, foster)
+FROM '/Users/irisweiss/greg/Medical/db/db_aidcodes.csv'
+WITH CSV HEADER;
+

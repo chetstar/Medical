@@ -42,8 +42,16 @@ CREATE TABLE "client_addresses" (
 
 CREATE TABLE "aidcodes" (
        "id" SMALLSERIAL PRIMARY KEY,
-       "aidcode" TEXT 
+       "aidcode" TEXT NOT NULL,
+       "federal_financial_participation" SMALLINT NOT NULL,
+       "fully_covered" BOOLEAN NOT NULL,
+       "disabled" BOOLEAN NOT NULL,
+       "foster" BOOLEAN NOT NULL,
        CONSTRAINT aidcodes_CK_aidcode_length CHECK (char_length(aidcode) <= 2),
+       CONSTRAINT aidcodes_CK_aidcode_not_empty CHECK (aidcode <> ''),
+       CONSTRAINT aidcodes_UQ_aidcode_unique UNIQUE (aidcode),
+       CONSTRAINT aidcodes_CK_federal_financial_participation CHECK
+        (federal_financial_participation IN (0,50,65,100)),
 );
 
 CREATE TABLE "county_codes" (
