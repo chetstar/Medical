@@ -40,6 +40,7 @@
 ['carrier_code_0', (266,270), 'Carrier Code'],
 ['federal_contract_number_0', (270,275), 'Federal Contract Number'],
 ['plan_id_0', (275,278), 'Medicare Part D Plan ID'],
+['plan_type', (278,280), 'Drug Plan Data'],
 ['health_care_plan_status_0', (290,292), 'Health Care Plan Enrollment Status'],
 ['health_care_plan_code_0', (292,295), 'Health Care Plan Code'],
 ['other_health_coverage_0', (295,296), 'Other Health Coverage'],
