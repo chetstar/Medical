@@ -1,0 +1,15 @@
+00, Voluntary disenrollment - No capitation paid
+01, Active enrollment – Capitation paid
+05, HCP hold due to recipient Medi-Cal ineligibility - No capitation paid
+09, Mandatory disenrollment - No capitation paid
+10, Voluntary disenrollment - Capitation recovery required
+19, Mandatory disenrollment - Capitation recovery required
+40, Voluntary disenrollment occurred before enrollment became effective
+49, Mandatory disenrollment occurred before enrollment became effective
+51, Enrollment activated from HCP hold or unmet SOC-Supplemental capitation to be paid month end
+55, Potential plan member - unmet SOC
+59, HCP hold due to HCP coverage limits - No capitation paid (see HCP reason)
+P4, Pending enrollment - Application accepted
+S0, Voluntary disenrollment - Capitation
+S1, Active enrollment – Supplemental capitation paid
+S9, Mandatory disenrollment Capitation recovery processed 
