@@ -49,6 +49,18 @@ CREATE TABLE "client_attributes" (
        CONSTRAINT client_attributes_UQ_cin UNIQUE (cin)
 );
 
+CREATE TABLE "client_names" (
+       "id" BIGSERIAL PRIMARY KEY,
+       "cin" TEXT NOT NULL,
+       "date" DATE,
+       "first_name" TEXT,
+       "middle_name" TEXT,
+       "last_name" TEXT,
+       "middle_initial" TEXT,
+       CONSTRAINT client_attributes_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
+);
+
 CREATE TABLE "client_addresses" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
