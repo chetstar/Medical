@@ -1,0 +1,18 @@
+Q: How do I fill all columns of a group with the max of the group.
+
+I would like to find the max of a group for a single column and them populate the other rows
+of that group with the max.
+
+
+df = pd.DataFrame({'A':['mary','mary','mary','bob','bob','bob'],
+		   'B':[1,None,None,None,None,None],
+		   'C':[5,6,7,8,9,10]})
+
+
+df.loc[:,'B'] = df.join(df.groupby('A').max(), rsuffix='r', on='A').loc[:,'Br']
+
+*************
+
+Set values in certain rows of column:
+
+
