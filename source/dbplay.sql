@@ -19,10 +19,91 @@ CREATE TEMP TABLE "staging_attributes" (
        CONSTRAINT client_attributes_UQ_cin UNIQUE (cin)
 );
 
--- List of CINS that ARE NOT in client_attributes.
-SELECT S.cin
-FROM "client_attributes" C
-    INNER JOIN "staging_attributes" S
-    ON C.cin = S.cin
+CREATE TEMP TABLE "staging_names" (
+       "id" BIGSERIAL PRIMARY KEY,
+       "cin" TEXT NOT NULL,
+       "source" TEXT,
+       "date" DATE,
+       "first_name" TEXT,
+       "middle_name" TEXT,
+       "last_name" TEXT,
+       "middle_initial" TEXT,
+       "full_name" TEXT,
+       CONSTRAINT client_attributes_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
+);
 
-INSERT INTO
+CREATE TEMP TABLE "staging_addresses" (
+       "id" BIGSERIAL PRIMARY KEY,
+       "cin" TEXT NOT NULL,
+       "date" DATE NOT NULL,
+       "street" TEXT,
+       "unit" TEXT,
+       "city" TEXT,
+       "state" TEXT, --Constrain to list?
+       "zip" TEXT, --How to deal with zip+4?
+       "raw" TEXT, --Unparsed address.
+       "source" TEXT,
+       CONSTRAINT client_addresses_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT       
+);
+
+--Create table for CINs that aren't in the database.
+CREATE TEMP TABLE new_cins (
+       "id" SERIAL PRIMARY KEY,
+       "cin" TEXT NOT NULL UNIQUE,
+);
+
+--Populate new_cins table.
+INSERT INTO new_cins (cin)
+SELECT S.cin
+FROM client_attributes C
+    INNER JOIN staging_attributes S
+    ON C.cin = S.cin
+;
+
+--Insert attributes for new clients
+INSERT INTO client_attributes
+       (cin, date_of_birth, meds_id, hic_number, hic_suffix, ethnicity, sex, primary_language)
+SELECT S.cin, S.date_of_birth, S.meds_id, S.hic_number, S.hic_suffix, 
+       S.ethnicity, S.sex, S.primary_language
+FROM new_cins N
+     INNER JOIN staging_attributes S
+     ON N.cin = S.cin
+;
+
+--Insert names for new clients
+INSERT INTO client_names
+       (cin, source, date, first_name, middle_initial, last_name)
+FROM new_cins N
+     INNER JOIN staging_names S
+     ON N.cin = S.cin
+;
+
+--Insert address for new clients.
+INSERT INTO client_addresses
+       (cin, source, date, street, unit, city, state, zip, raw)
+FROM new_cins
+     INNER JOIN staging_addresses S
+     ON N.cin = S.cin
+;
+
+/*There are three main tables with information about the client themselves: attributes, names,
+and addresses.  
+
+client_attributes:
+The data in the attribute table should be MOSTLY static. Date of Birth should 
+only change if it was wrong or empty to start with, same for meds_id and hic_number. Sex is
+static in the vast majority of cases, same with primary_language and ethnicity.  On any change to
+those fields we should keep the new data and drop the old data as long as the new data is valid.
+(eg, isn't an empty field replacing actual data.)
+
+client_names and client_addresses:
+If there is a change between the old data and the new data for the same source, add a new
+entry with the new data.
+*/
+
+
+
+
+
