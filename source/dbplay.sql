@@ -58,8 +58,9 @@ CREATE TEMP TABLE new_cins (
 INSERT INTO new_cins (cin)
 SELECT S.cin
 FROM client_attributes C
-    INNER JOIN staging_attributes S
+    RIGHT OUTER JOIN staging_attributes S
     ON C.cin = S.cin
+WHERE C.id IS NULL
 ;
 
 --Insert attributes for new clients
@@ -103,7 +104,57 @@ If there is a change between the old data and the new data for the same source, 
 entry with the new data.
 */
 
+WITH cins_in_both AS 
+     --List of cins that are in both client_attributes and staging_attributes.
+     (
+     SELECT S.cin
+     FROM client_attributes C
+     	  INNER JOIN staging_attributes S
+     	  ON S.cin = C.cin
+     WHERE C.id IS NOT NULL
+      	  AND S.id IS NOT NULL
+     ),
+     union_no_dupes AS
+     --All non dupe rows of staging and client attributes where cin is in both.
+     (
+     SELECT * FROM staging_attributes S WHERE S.id IN cins_in_both
+     UNION
+     SELECT * FROM client_attributes C WHERE c.id IN cins_in_both
+     ),
+     union_all AS 
+     --All rows of staging_attributes and client_attributes where the cin is in both.
+     (
+     SELECT * FROM staging_attributes S WHERE S.id IN cins_in_both
+     UNION ALL
+     SELECT * FROM client_attributes C WHERE c.id IN cins_in_both
+     ),
+     dupes AS 
+     --Rows that are the same in client_attributes and staging_attributes.
+     (
+     SELECT * FROM union_all
+     EXCEPT
+     SELECT * FROM union_no_dupes
+     ),
+     changed AS
+     --Rows where cin is in both client and staging but there is a difference between the two.
+     (
+     SELECT * FROM staging_attributes S WHERE S.id IN cins_in_both
+     EXCEPT
+     SELECT * FROM dupes
+     )
+SELECT *
+FROM changed
+;
 
-
+WITH cins_in_both AS 
+     --List of cins that are in both client_attributes and staging_attributes.
+     (
+     SELECT S.cin
+     FROM client_attributes C
+     	  INNER JOIN staging_attributes S
+     	  ON S.cin = C.cin
+     WHERE C.id IS NOT NULL
+      	  AND S.id IS NOT NULL
+     ),
 
 
