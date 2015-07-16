@@ -1,4 +1,16 @@
+import pandas as pd
+
 import config
+
+def make_duplicates_bitmask(medical_file):
+    """Use CIN and eligibility status for entire file to make bitmask
+    of duplicate and cinless rows."""
+    df = pd.read_fwf(medical_file, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
+    cinless = df['cin'].isnull()
+    df = df.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
+    dupemask = df.duplicated(subset = ['cin'])
+    dropmask = ~(cinless | dupemask) 
+    return dropmask
 
 def drop_summary_row(df):
     """Code to delete the last row if its a summary row."""
