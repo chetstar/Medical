@@ -11,14 +11,19 @@ import numpy as np
 import common
 import config
 
-def make_duplicates_bitmask(df):
-    """Use CIN and eligibility status for entire file to make bitmask
-    of duplicate and cinless rows."""
-    cinless = df['cin'].isnull()
-    df = df.sort(columns = ['cin','elig'], ascending = True, na_position = 'last')
-    dupemask = df.duplicated(subset = ['cin'])
-    dropmask = ~(cinless | dupemask) 
-    return dropmask
+def process_arguments():
+    parser = argparse.ArgumentParser(description='Process Medi-Cal File.')
+    parser.add_argument('infile', 
+                        nargs = '?',
+                        default = config.medical_file,
+                        help = 'Location of Medi-Cal file to process.')
+    parser.add_argument('-o', '--outfile',
+                        default = config.explode_file,
+                        help = 'File name and path of output file.')
+    parser.add_argument('-s', '--single-process',
+                        action = 'store_true',
+                        help = 'Run in a single process. Default is multi-process.')
+    return parser.parse_args()
 
 def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
     """Drop duplicate rows and rows without CINs."""
@@ -258,20 +263,6 @@ def single_process_run(chunked_data_iterator):
             chunk = (i, chunk)
             writer.writerows(process_chunk(chunk)[1])
 
-def process_arguments():
-    parser = argparse.ArgumentParser(description='Process Medi-Cal File.')
-    parser.add_argument('infile', 
-                        nargs = '?',
-                        default = config.medical_file,
-                        help = 'Location of Medi-Cal file to process.')
-    parser.add_argument('-o', '--outfile',
-                        default = config.explode_file,
-                        help = 'File name and path of output file.')
-    parser.add_argument('-s', '--single-process',
-                        action = 'store_true',
-                        help = 'Run in a single process. Default is multi-process.')
-    return parser.parse_args()
-
 if __name__ == '__main__':
 
     start_time = datetime.now()
@@ -280,8 +271,7 @@ if __name__ == '__main__':
     args = process_arguments()
 
     #Create bitmask used to remove duplicate rows and rows without a CIN.
-    df = pd.read_fwf(args.infile, colspecs = [(209,218),(255,258)], names = ['cin','elig'])
-    dupemask = make_duplicates_bitmask(df)
+    dupemask = common.make_duplicates_bitmask()
 
     #Aidcodes that indicate specific statuses.
     ssicodes = ['10','20','60']
