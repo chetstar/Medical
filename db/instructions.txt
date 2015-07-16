@@ -16,3 +16,7 @@ WITH CSV HEADER;
 COPY county_codes (county_code, county_name)
 FROM '/Users/irisweiss/greg/Medical/db/db_county_codes.csv'
 WITH CSV;
+
+COPY hcp_statuses (code, desciption)
+FROM '/Users/irisweiss/greg/Medical/db/db_hcp_status_codes.csv'
+WITH CSV;
