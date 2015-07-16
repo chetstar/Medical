@@ -1,7 +1,7 @@
 [
 ["meds_id", [0,9], "MEDS Identification Number"],
 ["hic_number", [9,18], "Health Insurance Claim Number"],
-["hic_number_suffix", [18,21], "Health Insurance Claim Number Suffix"],
+["hic_suffix", [18,21], "Health Insurance Claim Number Suffix"],
 ["date_of_birth", [21,29], "Date of Birth"],
 ["gender", [29,30], "Gender"],
 ["ethnicity_code", [30,31], "Ethnicity Code"],
