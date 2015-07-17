@@ -1,4 +1,5 @@
 CREATE TEMP TABLE "staging_attributes" (
+       -- (Tested, works)
        -- cin = client index number
        -- hic = health insurance claim
        "id" BIGSERIAL PRIMARY KEY,
@@ -10,16 +11,17 @@ CREATE TEMP TABLE "staging_attributes" (
        "ethnicity" TEXT, --Make table to constrain to. Store English term, not code.
        "sex" SEX_ENUM, 
        "primary_language" TEXT, --Make table to constrain to. Store English term, not code.
-       CONSTRAINT client_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
-       CONSTRAINT client_attributes_CK_meds_id_length CHECK (char_length(meds_id) <= 9),
-       CONSTRAINT client_attributes_CK_hic_number_length CHECK (char_length(hic_number) <= 9),
-       CONSTRAINT client_attributes_CK_hic_suffix_length CHECK (char_length(hic_suffix) <= 2),
-       CONSTRAINT client_attributes_CK_date CHECK 
+       CONSTRAINT staging_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
+       CONSTRAINT staging_attributes_CK_meds_id_length CHECK (char_length(meds_id) <= 9),
+       CONSTRAINT staging_attributes_CK_hic_number_length CHECK (char_length(hic_number) <= 9),
+       CONSTRAINT staging_attributes_CK_hic_suffix_length CHECK (char_length(hic_suffix) <= 2),
+       CONSTRAINT staging_attributes_CK_date CHECK 
        		  (date_of_birth > to_date('1895-01-01','YYYY-MM-DD')),
-       CONSTRAINT client_attributes_UQ_cin UNIQUE (cin)
+       CONSTRAINT staging_attributes_UQ_cin UNIQUE (cin)
 );
 
 CREATE TEMP TABLE "staging_names" (
+       -- (Tested, works)
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source" TEXT,
@@ -29,11 +31,12 @@ CREATE TEMP TABLE "staging_names" (
        "last_name" TEXT,
        "middle_initial" TEXT,
        "full_name" TEXT,
-       CONSTRAINT client_attributes_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT staging_names_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT
 );
 
 CREATE TEMP TABLE "staging_addresses" (
+       -- (Tested, works)
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "date" DATE NOT NULL,
@@ -44,17 +47,17 @@ CREATE TEMP TABLE "staging_addresses" (
        "zip" TEXT, --How to deal with zip+4?
        "raw" TEXT, --Unparsed address.
        "source" TEXT,
-       CONSTRAINT client_addresses_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT       
+       CONSTRAINT staging_addresses_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT       
 );
 
 --Create table for CINs that aren't in the database.
 CREATE TEMP TABLE new_cins (
        "id" SERIAL PRIMARY KEY,
-       "cin" TEXT NOT NULL UNIQUE,
+       "cin" TEXT NOT NULL UNIQUE
 );
 
---Populate new_cins table.
+--Populate new_cins table. (Tested, works)
 INSERT INTO new_cins (cin)
 SELECT S.cin
 FROM client_attributes C
@@ -117,16 +120,16 @@ WITH cins_in_both AS
      union_no_dupes AS
      --All non dupe rows of staging and client attributes where cin is in both.
      (
-     SELECT * FROM staging_attributes S WHERE S.id IN cins_in_both
+     SELECT * FROM staging_attributes S WHERE S.cin IN (SELECT cin FROM cins_in_both)
      UNION
-     SELECT * FROM client_attributes C WHERE c.id IN cins_in_both
+     SELECT * FROM client_attributes C WHERE c.cin IN (SELECT cin FROM cins_in_both)
      ),
      union_all AS 
      --All rows of staging_attributes and client_attributes where the cin is in both.
      (
-     SELECT * FROM staging_attributes S WHERE S.id IN cins_in_both
+     SELECT * FROM staging_attributes S WHERE S.cin IN (SELECT cin FROM cins_in_both)
      UNION ALL
-     SELECT * FROM client_attributes C WHERE c.id IN cins_in_both
+     SELECT * FROM client_attributes C WHERE c.cin IN (SELECT cin FROM cins_in_both)
      ),
      dupes AS 
      --Rows that are the same in client_attributes and staging_attributes.
@@ -138,7 +141,7 @@ WITH cins_in_both AS
      changed AS
      --Rows where cin is in both client and staging but there is a difference between the two.
      (
-     SELECT * FROM staging_attributes S WHERE S.id IN cins_in_both
+     SELECT * FROM staging_attributes S WHERE S.cin IN (SELECT cin FROM cins_in_both)
      EXCEPT
      SELECT * FROM dupes
      )
@@ -157,4 +160,29 @@ WITH cins_in_both AS
       	  AND S.id IS NOT NULL
      ),
 
+----Code below here is for testing.
 
+--copy from client to staging.
+INSERT INTO staging_attributes
+       (cin, date_of_birth, meds_id, hic_number, hic_suffix, ethnicity, sex, primary_language)
+SELECT S.cin, S.date_of_birth, S.meds_id, S.hic_number, S.hic_suffix, 
+       S.ethnicity, S.sex, S.primary_language
+FROM client_attributes S
+WHERE S.id in (15,16,17,18,19,20)
+;
+
+update staging_attributes                                                                
+set cin='00000000A'
+where id = 1;
+
+update staging_attributes                                                                
+set cin='00000000B'
+where id = 2; 
+
+update staging_attributes                                                                
+set cin='00000000C'
+where id = 3; 
+
+update staging_attributes
+set cin='00000000C'
+where id = 3; 

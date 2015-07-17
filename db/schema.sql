@@ -39,7 +39,7 @@ CREATE TABLE "client_attributes" (
        "meds_id" TEXT,
        "hic_number" TEXT, 
        "hic_suffix" TEXT,
-       "race" TEXT, --Make table to constrain to. Store English term, not code.
+       "ethnicity" TEXT, --Make table to constrain to. Store English term, not code.
        "sex" SEX_ENUM, 
        "primary_language" TEXT, --Make table to constrain to. Store English term, not code.
        CONSTRAINT client_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
@@ -54,12 +54,14 @@ CREATE TABLE "client_attributes" (
 CREATE TABLE "client_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
+       "source" TEXT,
        "date" DATE,
        "first_name" TEXT,
        "middle_name" TEXT,
        "last_name" TEXT,
        "middle_initial" TEXT,
-       CONSTRAINT client_attributes_FK_cin FOREIGN KEY (cin)
+       "full_name" TEXT,
+       CONSTRAINT client_names_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
 );
 

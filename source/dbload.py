@@ -47,13 +47,13 @@ def update_client_attributes(df):
     df = set_language(df)
 
     df_columns = ['cin', 'date_of_birth', 'meds_id', 'hic_number', 
-                  'hic_suffix', 'ethnicity_code', 'language_code', 'gender']
+                  'hic_suffix', 'ethnicity_code', 'gender', 'language_code']
 
     #Set np.nan to None because psycopg2 doesn't correctly convert np.nan.
     df.loc[:,df_columns] = df[df_columns].where(pd.notnull((df[df_columns])), None)
 
     sql = """INSERT INTO client_attributes 
-    (cin, date_of_birth, meds_id, hic, hic_suffix, ethnicity, language, sex) 
+    (cin, date_of_birth, meds_id, hic_number, hic_suffix, ethnicity, sex, primary_language) 
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
     with conn.cursor() as cur:        
