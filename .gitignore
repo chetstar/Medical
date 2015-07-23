@@ -68,3 +68,4 @@ target/
 /test
 /data
 config.py
+/venv
