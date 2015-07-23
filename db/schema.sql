@@ -55,12 +55,13 @@ CREATE TABLE "client_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source" TEXT,
-       "date" DATE,
+       "creation_date" DATE,
        "first_name" TEXT,
        "middle_name" TEXT,
        "last_name" TEXT,
        "middle_initial" TEXT,
        "full_name" TEXT,
+       "suffix" TEXT,
        CONSTRAINT client_names_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
 );
@@ -68,7 +69,7 @@ CREATE TABLE "client_names" (
 CREATE TABLE "client_addresses" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "date" DATE NOT NULL,
+       "creation_date" DATE NOT NULL,
        "street" TEXT,
        "unit" TEXT,
        "city" TEXT,
@@ -83,7 +84,7 @@ CREATE TABLE "client_addresses" (
 CREATE TABLE "client_eligibility_base" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "date" DATE NOT NULL,
+       "medical_date" DATE NOT NULL,
        "resident_county" TEXT,
        "soc_amount" TEXT,
        "medicare_status" TEXT,
@@ -108,7 +109,7 @@ CREATE TABLE "client_eligibility_base" (
 CREATE TABLE "client_hcp_status" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "date" DATE NOT NULL,
+       "medical_date" DATE NOT NULL,
        "hcp_status" TEXT,
        "hcp_code" TEXT,
        "cardinal" SMALLINT,
@@ -122,7 +123,7 @@ CREATE TABLE "client_hcp_status" (
 CREATE TABLE "client_eligibility_status" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "date" DATE NOT NULL,
+       "medical_date" DATE NOT NULL,
        "cardinal" SMALLINT NOT NULL, --eg. sp1,sp2,sp3 or no sp
        "aidcode" TEXT,
        "eligibility_status" TEXT, --Still needs a constraint.(needs table of valid statuses)
@@ -130,7 +131,7 @@ CREATE TABLE "client_eligibility_status" (
        CONSTRAINT client_eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
        CONSTRAINT client_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
        		  REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,
-       CONSTRAINT client_eligibility_status_UQ_cin_date_cardinal UNIQUE (cin, "date", cardinal),
+       CONSTRAINT client_eligibility_status_UQ_cin_date_cardinal UNIQUE (cin, "medical_date", cardinal),
        CONSTRAINT client_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
        		  REFERENCES county_codes (county_code) ON DELETE RESTRICT,
        CONSTRAINT client_eligibility_status_FK_cin FOREIGN KEY (cin)
