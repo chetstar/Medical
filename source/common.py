@@ -2,6 +2,12 @@ import pandas as pd
 
 import config
 
+def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
+    """Drop duplicate rows and rows without CINs."""
+    df.index = range(chunknum*chunksize, chunknum*chunksize + len(df.index))
+    df = df[dupemask[df.index]]
+    return df
+
 def make_duplicates_bitmask(medical_file):
     """Use CIN and eligibility status for entire file to make bitmask
     of duplicate and cinless rows."""

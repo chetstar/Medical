@@ -13,6 +13,7 @@ CREATE TABLE "aidcodes" (
 );
 
 CREATE TABLE "county_codes" (
+       --Contains all 58 valid county codes with names for the state of California.
        "id" SMALLSERIAL PRIMARY KEY,
        "county_code" TEXT,
        "county_name" TEXT,
@@ -21,6 +22,7 @@ CREATE TABLE "county_codes" (
 );
 
 CREATE TABLE "hcp_statuses" (
+       --Contains all valid hcp_status codes with descriptions.
        "id" SMALLSERIAL PRIMARY KEY,
        "code" TEXT NOT NULL,
        "desciption" TEXT NOT NULL,
@@ -55,7 +57,7 @@ CREATE TABLE "client_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source" TEXT,
-       "creation_date" DATE,
+       "source_date" DATE,
        "first_name" TEXT,
        "middle_name" TEXT,
        "last_name" TEXT,
@@ -69,7 +71,7 @@ CREATE TABLE "client_names" (
 CREATE TABLE "client_addresses" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "creation_date" DATE NOT NULL,
+       "source_date" DATE NOT NULL,
        "street" TEXT,
        "unit" TEXT,
        "city" TEXT,

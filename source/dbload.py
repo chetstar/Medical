@@ -1,4 +1,5 @@
 import json 
+from datetime import datetime
 
 import psycopg2
 import pandas as pd
@@ -68,12 +69,13 @@ CREATE TEMP TABLE "staging_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source" TEXT,
-       "date" DATE,
+       "source_date" DATE,
        "first_name" TEXT,
        "middle_name" TEXT,
        "last_name" TEXT,
        "middle_initial" TEXT,
        "full_name" TEXT,
+       "suffix" TEXT,
        CONSTRAINT staging_names_FK_cin FOREIGN KEY (cin)
        		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT
 );
@@ -82,7 +84,7 @@ CREATE TEMP TABLE "staging_addresses" (
        -- (Tested, works)
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "date" DATE NOT NULL,
+       "source_date" DATE NOT NULL,
        "street" TEXT,
        "unit" TEXT,
        "city" TEXT,
@@ -101,7 +103,8 @@ CREATE TEMP TABLE "staging_addresses" (
 def convert_nans_to_nones(df, df_columns):
     """Set np.nan to None because psycopg2 doesn't correctly convert np.nan."""
     df.loc[:,df_columns] = df[df_columns].where(pd.notnull((df[df_columns])), None)
-    
+    return df
+
 def populate_staging_attributes(df):
     df = set_sex(df)
     df = format_date_of_birth(df)
@@ -112,7 +115,7 @@ def populate_staging_attributes(df):
                   'hic_suffix', 'ethnicity_code', 'gender', 'language_code']
 
     df = convert_nans_to_nones(df, df_columns)
-    #source, creation_date
+    
     sql = """INSERT INTO staging_attributes 
              (cin, date_of_birth, meds_id, hic_number, hic_suffix, ethnicity, sex, primary_language) 
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
@@ -121,23 +124,37 @@ def populate_staging_attributes(df):
         cur.executemany(sql, df[df_columns].values)
 
 def populate_staging_names(df):
-    df_columns = ['cin', 'first_name', 'middle_initial', 'last_name', 'name_suffix']
-    #souce, creation_date
+    df_columns = ['cin', 'first_name', 'middle_initial', 'last_name', 'name_suffix', 'source_date', 'source']
+
     df = convert_nans_to_nones(df, df_columns)
 
     sql = """INSERT INTO staging_names
-             (cin, first_name, middle_initial, last_name, suffix)
-             VALUES (%s, %s, %s, %s, %s, %s)"""
+             (cin, first_name, middle_initial, last_name, suffix, source_date, source)
+             VALUES (%s, %s, %s, %s, %s, %s, %s)"""
 
     with conn.cursor() as cur:
         cur.executemany(sql, df[df_columns].values)
+        
+def create_source_date_column(df):
+    source_date = datetime(int(df['eligibility_year_0'][df.index[0]]),
+                           int(df['eligibility_month_0'][df.index[0]]), 1)
+    df['source_date'] = source_date
+    return df
+
+def create_source_column(df):
+    df['source'] = 'Medi-Cal'
+    return df
 
 def populate_staging_addresses(df):
-    #df_columns = ['cin', 'street', 'unit', 'state', 'city', 'zip']
 
+    df_columns = ['cin', 'address_line_1', 'address_line_2', 'address_state',
+                  'address_city', 'address_zip_code', 'source_date', 'source']
+
+    df = convert_nans_to_nones(df, df_columns)
+    
     sql = """INSERT INTO staging_addresses
-             (cin, street, unit, state, city, zip, raw)
-             VALUES (%s, %s, %s, %s, %s, %s)"""
+             (cin, street, unit, state, city, zip, source_date, source)
+             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
     with conn.cursor() as cur:
         cur.executemany(sql, df[df_columns].values)
@@ -146,12 +163,14 @@ def populate_new_cins_table():
     """Create and populate new_cins table.  This table contains all cins that
     are in staging_attributes that aren't in client_attributes."""
     
-    sql = """--Create table for CINs that aren't in the database.
+    create = """
+             --Create table for CINs that aren't in the database.
              CREATE TEMP TABLE new_cins (
              "id" SERIAL PRIMARY KEY,
              "cin" TEXT NOT NULL UNIQUE
-             );
-
+             );"""
+    
+    populate = """
              --Populate new_cins table. (Tested, works)
              INSERT INTO new_cins (cin)
              SELECT S.cin
@@ -160,21 +179,81 @@ def populate_new_cins_table():
                  ON C.cin = S.cin
              WHERE C.id IS NULL
              ;"""
+
+    with conn.cursor() as cur:
+        cur.execute(create)
+        cur.execute(populate)
+        
+def update_existing_client_attributes():
+    pass
+
+def update_client_names():
+    """For existing clients if the name fields have changed add a new entry.
+    For new clients add a new entry."""
+    pass
+
+def insert_new_client_names():
+    sql = """
+          --Insert names for new clients
+          INSERT INTO client_names
+              (cin, creation_date, first_name, middle_initial, last_name)
+          SELECT S.cin, source_date AS creation_date, first_name, middle_initial, last_name
+          FROM new_cins N
+              INNER JOIN staging_names S
+              ON N.cin = S.cin
+          ;"""
+
     with conn.cursor() as cur:
         cur.execute(sql)
 
-def process_chunk(chunk):
+def insert_new_client_addresses():
+    sql = """
+          --Insert address for new clients.
+          INSERT INTO client_addresses
+              (cin, creation_date, street, unit, city, state, zip, raw)
+          SELECT S.cin, source_date, street, unit, city, state, zip, raw
+          FROM new_cins N
+              INNER JOIN staging_addresses S
+              ON N.cin = S.cin
+          ;"""
+    
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        
+def insert_new_client_attributes():
+    sql = """--Insert attributes for new clients
+          INSERT INTO client_attributes
+              (cin, date_of_birth, meds_id, hic_number, 
+               hic_suffix, ethnicity, sex, primary_language)
+          SELECT S.cin, S.date_of_birth, S.meds_id, S.hic_number, S.hic_suffix, 
+              S.ethnicity, S.sex, S.primary_language
+          FROM new_cins N
+              INNER JOIN staging_attributes S
+              ON N.cin = S.cin
+          ;"""
+    
+    with conn.cursor() as cur:
+        cur.execute(sql)
+
+def insert_client_eligibility_base(df):
+
+def process_chunk(df, chunk_number, chunksize, dupemask):
+    df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
+    df = create_source_date_column(df)
     create_staging_tables()
-    populate_staging_attributes()
-    populate_staging_names()
-    populate_staging_addresses()
-    create_new_cins_table()
-    update_client_attributes()
-    update_client_names()
-    update_client_addresses()
-    update_client_eligibility_base()
-    update_client_eligibility_status()
-    update_client_hcp_status()
+    populate_staging_attributes(df)
+    populate_staging_names(df)
+    populate_staging_addresses(df)
+    populate_new_cins_table()
+    #update_existing_client_attributes()
+    insert_new_client_attributes()
+    #update_client_names()
+    insert_new_client_names()
+    #update_client_addresses()
+    insert_new_client_addresses()
+    insert_client_eligibility_base(df)
+    #update_client_eligibility_status()
+    #update_client_hcp_status()
 
 if __name__ == "__main__":
 
@@ -195,8 +274,7 @@ if __name__ == "__main__":
                                         iterator = True,
                                         chunksize = chunksize)
 
-    
-    for i, chunk in enumerate(chunked_data_iterator):
-        with psycopg2.connect(database="medical", user='irisweiss') as conn:
-            update_client_attributes(chunk)
+    for chunk_number, chunk in enumerate(chunked_data_iterator):
+        with psycopg2.connect(database="medical", user='greg') as conn:
+            process_chunk(chunk, chunk_number, chunksize, dupemask)
 

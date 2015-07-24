@@ -159,6 +159,27 @@ WITH cins_in_both AS
      WHERE C.id IS NOT NULL
       	  AND S.id IS NOT NULL
      ),
+     new_names AS
+     (
+     SELECT cin, first_name, middle_initial, last_name
+     FROM staging_names
+     WHERE cin IN (SELECT cin FROM cins_in_both)
+     ),
+     old_names AS
+     (
+     SELECT cin, first_name, middle_initial, last_name
+     FROM client_names
+     WHERE cin IN (SELECT cin FROM cins_in_both)
+     ),
+     not_matching AS
+     (
+     SELECT N.cin
+     FROM new_names N
+     WHERE NOT EXISTS (SELECT NULL
+     	       	      FROM old_names O
+		      WHERE N.cin = O.cin)
+SELECT cin
+FROM not_matching
 
 ----Code below here is for testing.
 

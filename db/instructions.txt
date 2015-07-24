@@ -1,22 +1,15 @@
 Files:
-format_aidcodes.py - creates a db_aidcodes.csv formatted for copying into medical db.
 db_aidcodes.py - csv formatted for copying into medical db.
 schema.sql - schema file for medical db.
 
 How to setup medical db.
 
-Run: 
-psql -f schema.sql
+In psql run:
+CREATE DATABASE medical;
 
 Run:
-COPY aidcodes (federal_financial_participation, aidcode, disabled, fully_covered, foster)
-FROM '/Users/irisweiss/greg/Medical/db/db_aidcodes.csv'
-WITH CSV HEADER;
+psql medical -f schema.sql (or psql medical < schema.sql)
 
-COPY county_codes (county_code, county_name)
-FROM '/Users/irisweiss/greg/Medical/db/db_county_codes.csv'
-WITH CSV;
-
-COPY hcp_statuses (code, desciption)
-FROM '/Users/irisweiss/greg/Medical/db/db_hcp_status_codes.csv'
-WITH CSV;
+Run:
+psql medical -f copy.sql
+That file needs to be modified with the absolute path of the .csv it is copying.
