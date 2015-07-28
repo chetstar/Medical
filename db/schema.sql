@@ -105,10 +105,11 @@ CREATE TABLE "client_eligibility_base" (
        		  (char_length(medicare_status) <= 3),
        CONSTRAINT client_eligibility_base_CK_carrier_code CHECK (char_length(carrier_code) <= 4),
        CONSTRAINT client_eligibility_base_CK_federal_contract_number CHECK
-       		  (length(federal_contract_number) <= 4)
+       		  (length(federal_contract_number) <= 5)
 );
 
 CREATE TABLE "client_hcp_status" (
+       --HCP = Health Care Plan
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "medical_date" DATE NOT NULL,
