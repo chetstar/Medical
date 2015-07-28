@@ -236,10 +236,32 @@ def insert_new_client_attributes():
         cur.execute(sql)
 
 def insert_client_eligibility_base(df):
+    #cin,medical_date,resident_county,soc_amount,medicare_status,carrier_code,
+    #federal_contract_number,plan_id,plan_type,surs_code,special_obligation,healthy_families_date
+    df_columns = ['cin', 'source_date', 'resident_county', 'share_of_cost_amount', 'medicare_status',
+                  'carrier_code', 'federal_contract_number', 'plan_id', 'plan_type', 'surs_code',
+                  'special_obligation', 'healthy_families_date']
 
+    df = convert_nans_to_nones(df, df_columns)
+
+    sql = """
+          INSERT INTO client_eligibility_base
+              (cin, medical_date, resident_county, soc_amount, medicare_status, carrier_code, 
+               federal_contract_number, plan_id, plan_type, surs_code, special_obligation,
+               healthy_families_date)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+
+    with conn.cursor() as cur:
+        cur.executemany(sql, df[df_columns].values)
+
+def create_eligibility_date_column(df):
+    df['eligibility_date'] = pd.to_datetime(df['eligibility_year'] + df['eligibility_month'] + '01')
+    return df
+        
 def process_chunk(df, chunk_number, chunksize, dupemask):
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
+    df = create_source_column(df)
     create_staging_tables()
     populate_staging_attributes(df)
     populate_staging_names(df)
@@ -251,12 +273,29 @@ def process_chunk(df, chunk_number, chunksize, dupemask):
     insert_new_client_names()
     #update_client_addresses()
     insert_new_client_addresses()
-    insert_client_eligibility_base(df)
-    #update_client_eligibility_status()
-    #update_client_hcp_status()
+    df = common.wide_to_long_by_month(df, stubs)
+    create_eligibility_date_column(df)
+    df = insert_client_eligibility_base(df)
+    #dw = common.wide_to_long_by_aidcode(df)
+    #insert_client_eligibility_status()
+    #dw = wide_to_long_by_hcp(df)
+    #insert_client_hcp_status()
 
 if __name__ == "__main__":
 
+    stubs = ["eligibility_year", "eligibility_month", "aidcode_sp0",
+             "responsible_county_sp0", "resident_county", "eligibility_status_sp0", 
+             "share_of_cost_amount", "medicare_status", "carrier_code", 
+             "federal_contract_number", "plan_id", "plan_type",
+             "health_care_plan_status_s0", "health_care_plan_code_s0",
+             "other_health_coverage", "surs_code", "aidcode_sp1", 
+             "responsible_county_sp1", "eligibility_status_sp1", "aidcode_sp2",
+             "responsible_county_sp2", "eligibility_status_sp2", "special_obligation",
+             "healthy_families_date", "aidcode_sp3", "responsible_county_sp3",
+             "eligibility_status_sp3", "health_care_plan_status_s1",
+             "health_care_plan_code_s1", "health_care_plan_status_s2", 
+             "health_care_plan_code_s2"]
+    
     medical_file = config.medical_file
 
     #Create bitmask used to remove duplicate rows and rows without a CIN.
@@ -265,6 +304,7 @@ if __name__ == "__main__":
     #column_names and column_specifications are used by pandas.read_fwf to read Medi-Cal file.
     with open(config.db_load_info) as f:
         column_names, column_specifications, _ = zip(*json.load(f))
+
     #Create an iterator to read chunks of the fixed width Medi-Cal file.
     chunksize = config.chunk_size
     chunked_data_iterator = pd.read_fwf(medical_file,
