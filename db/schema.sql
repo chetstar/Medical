@@ -87,6 +87,7 @@ CREATE TABLE "client_eligibility_base" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "medical_date" DATE NOT NULL,
+       "eligibility_date" DATE NOT NULL,
        "resident_county" TEXT,
        "soc_amount" TEXT,
        "medicare_status" TEXT,
@@ -97,6 +98,8 @@ CREATE TABLE "client_eligibility_base" (
        "surs_code" TEXT,
        "special_obligation" TEXT,
        "healthy_families_date" DATE,
+       CONSTRAINT client_eligibility_base_UQ_cin_date_date UNIQUE
+       		  (cin, medical_date, eligibility_date),
        CONSTRAINT client_eligibility_base_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
        CONSTRAINT client_eligiblity_base_FK_resident_county FOREIGN KEY (resident_county)
