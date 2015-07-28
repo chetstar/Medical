@@ -8,6 +8,11 @@ def drop_duplicate_rows(df, chunknum, chunksize, dupemask):
     df = df[dupemask[df.index]]
     return df
 
+def wide_to_long_by_month(df, stubs):
+    df = pd.wide_to_long(df, stubs, 'cin', 'j')
+    df = df.reset_index()
+    return df
+
 def make_duplicates_bitmask(medical_file):
     """Use CIN and eligibility status for entire file to make bitmask
     of duplicate and cinless rows."""
