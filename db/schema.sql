@@ -86,7 +86,7 @@ CREATE TABLE "client_addresses" (
 CREATE TABLE "client_eligibility_base" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "medical_date" DATE NOT NULL,
+       "source_date" DATE NOT NULL,
        "eligibility_date" DATE NOT NULL,
        "resident_county" TEXT,
        "soc_amount" TEXT,
@@ -99,7 +99,7 @@ CREATE TABLE "client_eligibility_base" (
        "special_obligation" TEXT,
        "healthy_families_date" DATE,
        CONSTRAINT client_eligibility_base_UQ_cin_date_date UNIQUE
-       		  (cin, medical_date, eligibility_date),
+       		  (cin, source_date, eligibility_date),
        CONSTRAINT client_eligibility_base_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
        CONSTRAINT client_eligiblity_base_FK_resident_county FOREIGN KEY (resident_county)
@@ -115,21 +115,25 @@ CREATE TABLE "client_hcp_status" (
        --HCP = Health Care Plan
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "medical_date" DATE NOT NULL,
+       "source_date" DATE NOT NULL,
+       "eligibility_date" DATE NOT NULL,
+       "cardinal" SMALLINT,
        "hcp_status" TEXT,
        "hcp_code" TEXT,
-       "cardinal" SMALLINT,
        CONSTRAINT client_hcp_status_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
        CONSTRAINT client_hcp_status_CK_cardinal CHECK (cardinal IN (0,1,2)),
-       CONSTRAINT client_hcp_status_FK_hcp_code FOREIGN KEY (hcp_code)
-       		  REFERENCES hcp_statuses (code) ON DELETE RESTRICT
+       CONSTRAINT client_hcp_status_FK_hcp_status FOREIGN KEY (hcp_status)
+       		  REFERENCES hcp_statuses (code) ON DELETE RESTRICT,
+       CONSTRAINT client_hcp_status_UQ_cin_date_date_cardinal UNIQUE
+       		  (cin, source_date, eligibility_date, cardinal)
 );
 
 CREATE TABLE "client_eligibility_status" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "medical_date" DATE NOT NULL,
+       "source_date" DATE NOT NULL,
+       "eligibility_date" DATE NOT NULL,
        "cardinal" SMALLINT NOT NULL, --eg. sp1,sp2,sp3 or no sp
        "aidcode" TEXT,
        "eligibility_status" TEXT, --Still needs a constraint.(needs table of valid statuses)
@@ -137,7 +141,8 @@ CREATE TABLE "client_eligibility_status" (
        CONSTRAINT client_eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
        CONSTRAINT client_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
        		  REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,
-       CONSTRAINT client_eligibility_status_UQ_cin_date_cardinal UNIQUE (cin, "medical_date", cardinal),
+       CONSTRAINT client_eligibility_status_UQ_cin_date_date_cardinal UNIQUE
+       		  (cin, source_date, eligibility_date, cardinal),
        CONSTRAINT client_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
        		  REFERENCES county_codes (county_code) ON DELETE RESTRICT,
        CONSTRAINT client_eligibility_status_FK_cin FOREIGN KEY (cin)
