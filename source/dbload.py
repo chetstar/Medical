@@ -96,9 +96,7 @@ CREATE TEMP TABLE "staging_addresses" (
        		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT       
 );
 """
-
-    with conn.cursor() as cur:
-        cur.execute(sql)
+    cur.execute(sql)
     
 def convert_nans_to_nones(df, df_columns):
     """Set np.nan to None because psycopg2 doesn't correctly convert np.nan."""
@@ -120,8 +118,7 @@ def populate_staging_attributes(df):
              (cin, date_of_birth, meds_id, hic_number, hic_suffix, ethnicity, sex, primary_language) 
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
-    with conn.cursor() as cur:        
-        cur.executemany(sql, df[df_columns].values)
+    cur.executemany(sql, df[df_columns].values)
 
 def populate_staging_names(df):
     df_columns = ['cin', 'first_name', 'middle_initial', 'last_name', 'name_suffix', 'source_date', 'source']
@@ -132,8 +129,7 @@ def populate_staging_names(df):
              (cin, first_name, middle_initial, last_name, suffix, source_date, source)
              VALUES (%s, %s, %s, %s, %s, %s, %s)"""
 
-    with conn.cursor() as cur:
-        cur.executemany(sql, df[df_columns].values)
+    cur.executemany(sql, df[df_columns].values)
         
 def create_source_date_column(df):
     source_date = datetime(int(df['eligibility_year_0'][df.index[0]]),
@@ -156,8 +152,7 @@ def populate_staging_addresses(df):
              (cin, street, unit, state, city, zip, source_date, source)
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
-    with conn.cursor() as cur:
-        cur.executemany(sql, df[df_columns].values)
+    cur.executemany(sql, df[df_columns].values)
 
 def populate_new_cins_table():
     """Create and populate new_cins table.  This table contains all cins that
@@ -180,9 +175,8 @@ def populate_new_cins_table():
              WHERE C.id IS NULL
              ;"""
 
-    with conn.cursor() as cur:
-        cur.execute(create)
-        cur.execute(populate)
+    cur.execute(create)
+    cur.execute(populate)
         
 def update_existing_client_attributes():
     pass
@@ -196,29 +190,25 @@ def insert_new_client_names():
     sql = """
           --Insert names for new clients
           INSERT INTO client_names
-              (cin, creation_date, first_name, middle_initial, last_name)
+              (cin, source_date, first_name, middle_initial, last_name)
           SELECT S.cin, source_date AS creation_date, first_name, middle_initial, last_name
           FROM new_cins N
               INNER JOIN staging_names S
-              ON N.cin = S.cin
-          ;"""
+              ON N.cin = S.cin;"""
 
-    with conn.cursor() as cur:
-        cur.execute(sql)
+    cur.execute(sql)
 
 def insert_new_client_addresses():
     sql = """
           --Insert address for new clients.
           INSERT INTO client_addresses
-              (cin, creation_date, street, unit, city, state, zip, raw)
+              (cin, source_date, street, unit, city, state, zip, raw)
           SELECT S.cin, source_date, street, unit, city, state, zip, raw
           FROM new_cins N
               INNER JOIN staging_addresses S
-              ON N.cin = S.cin
-          ;"""
+              ON N.cin = S.cin;"""
     
-    with conn.cursor() as cur:
-        cur.execute(sql)
+    cur.execute(sql)
         
 def insert_new_client_attributes():
     sql = """--Insert attributes for new clients
@@ -229,35 +219,137 @@ def insert_new_client_attributes():
               S.ethnicity, S.sex, S.primary_language
           FROM new_cins N
               INNER JOIN staging_attributes S
-              ON N.cin = S.cin
-          ;"""
-    
-    with conn.cursor() as cur:
-        cur.execute(sql)
+              ON N.cin = S.cin;"""
 
-def insert_client_eligibility_base(df):
+    cur.execute(sql)
+
+def insert_client_eligibility_base(df, chunk_number):
     #cin,medical_date,resident_county,soc_amount,medicare_status,carrier_code,
     #federal_contract_number,plan_id,plan_type,surs_code,special_obligation,healthy_families_date
-    df_columns = ['cin', 'source_date', 'resident_county', 'share_of_cost_amount', 'medicare_status',
-                  'carrier_code', 'federal_contract_number', 'plan_id', 'plan_type', 'surs_code',
-                  'special_obligation', 'healthy_families_date']
+    df_columns = ['cin', 'source_date', 'resident_county', 'share_of_cost_amount',
+                  'medicare_status', 'carrier_code', 'federal_contract_number', 'plan_id',
+                  'plan_type', 'surs_code', 'special_obligation', 'healthy_families_date',
+                  'eligibility_date']
 
     df = convert_nans_to_nones(df, df_columns)
 
     sql = """
           INSERT INTO client_eligibility_base
-              (cin, medical_date, resident_county, soc_amount, medicare_status, carrier_code, 
+              (cin, source_date, resident_county, soc_amount, medicare_status, carrier_code, 
                federal_contract_number, plan_id, plan_type, surs_code, special_obligation,
-               healthy_families_date)
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
-
-    with conn.cursor() as cur:
+               healthy_families_date, eligibility_date)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+    
+    try:
         cur.executemany(sql, df[df_columns].values)
+    except psycopg2.IntegrityError as e:
+        if e.pgcode == '23505':
+            print('Some eligibility_base rows in chunk {} have already been inserted'.format(chunk_number))
+            conn.commit()
+        else:
+            raise e
+    finally:
+        conn.commit()
+        
+def insert_client_eligibility_status(dw):
+    eligibility_status_columns = ['cin', 'source_date', 'eligibility_date', 'cardinal', 'aidcode',
+                  'eligibility_status', 'responsible_county']
 
+    dw = convert_nans_to_nones(dw, eligibility_status_columns)
+
+    sql = """
+          INSERT INTO client_eligibility_status
+              (cin, source_date, eligibility_date, cardinal, aidcode, eligibility_status,
+               responsible_county)
+          VALUES (%s, %s, %s, %s, %s, %s, %s); """
+    
+    try:
+        cur.executemany(sql, dw[eligibility_status_columns].values)
+    except psycopg2.IntegrityError as e:
+        if e.pgcode == '23505':
+            print('Some eligibility_status rows in chunk {} have already been inserted'.format(chunk_number))
+            conn.commit()
+        else:
+            raise e
+    finally:
+        conn.commit()
+       
 def create_eligibility_date_column(df):
     df['eligibility_date'] = pd.to_datetime(df['eligibility_year'] + df['eligibility_month'] + '01')
     return df
-        
+
+def wide_to_long(df, stubs):
+    #Only operate on necesarry columns to keep memory usage down.
+    cols_to_keep= [col for col in df.columns for stub in stubs if col.startswith(stub)]
+    cols_to_keep.extend(['cin', 'source_date', 'eligibility_date'])
+    dw = df[cols_to_keep].copy()
+    dw['id'] = dw.index
+    dw = pd.wide_to_long(dw, stubs, 'cin', 'j')
+    dw['cardinal'] = dw.index.get_level_values('j').str[-1]
+    dw = dw.reset_index()
+    return dw
+
+def insert_client_hcp_status(dw):
+    df_columns = ['cin', 'source_date', 'eligibility_date', 'health_care_plan_status',
+                  'health_care_plan_code', 'cardinal']
+
+    dw = convert_nans_to_nones(dw, df_columns)
+    
+    sql = """
+          INSERT INTO client_hcp_status
+          (cin, source_date, eligibility_date, hcp_status, hcp_code, cardinal)
+          VAlUES (%s, %s, %s, %s, %s, %s); """
+
+    try:
+        cur.executemany(sql, dw[df_columns].values)
+    except psycopg2.IntegrityError as e:
+        if e.pgcode == '23505':
+            print('Some hcp_status rows in chunk {} have already been inserted'.format(chunk_number))
+        else:
+            raise e
+    finally:
+        conn.commit()            
+
+def wide_to_long_by_month(df, stubs):
+    df = pd.wide_to_long(df, stubs, 'cin', 'j')
+    df = df.reset_index()
+    return df
+
+def get_aidcode_info():
+    """Get data from info_aidcodes table and put it into df_aidcodes"""
+    
+    sql = """
+          SELECT aidcode, federal_financial_participation, fully_covered, disabled, foster
+          FROM aidcodes """
+
+    cur.execute(sql)
+    records = cur.fetchall()
+    df_aidcodes = pd.DataFrame(data = records,
+                               columns = ['aidcode', 'ffp', 'full', 'disabled', 'foster'])
+    return df_aidcodes
+
+def make_eligibility_bitmask(dw):
+    elig = dw['eligibility_status'].dropna().str[0].astype(int).le(5).reindex(
+        index = dw.index, fill_value = False) 
+    return elig
+
+def make_local_bitmask(dw):
+    return dw['responsible_county'].dropna().eq('01').reindex(index = dw.index, fill_value = False)
+
+def make_covered_bitmask(dw):
+    return dw['fully_covered'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+
+def make_disabled_bitmask(dw):
+    return dw['disabled'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+
+def make_foster_bitmask(dw):
+    return dw['foster'].dropna().eq(1).reindex(index = dw.index, fill_value = False)
+
+def merge_aidcode_info(dw, df_aidcodes):
+    """Merge in aidcode based info: foster, disabled, full, ffp."""
+    dw = dw.merge(df_aidcodes, how = 'left')
+    return dw
+
 def process_chunk(df, chunk_number, chunksize, dupemask):
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
@@ -267,34 +359,68 @@ def process_chunk(df, chunk_number, chunksize, dupemask):
     populate_staging_names(df)
     populate_staging_addresses(df)
     populate_new_cins_table()
+    conn.commit()
     #update_existing_client_attributes()
     insert_new_client_attributes()
     #update_client_names()
     insert_new_client_names()
     #update_client_addresses()
     insert_new_client_addresses()
-    df = common.wide_to_long_by_month(df, stubs)
-    create_eligibility_date_column(df)
-    df = insert_client_eligibility_base(df)
-    #dw = common.wide_to_long_by_aidcode(df)
-    #insert_client_eligibility_status()
-    #dw = wide_to_long_by_hcp(df)
-    #insert_client_hcp_status()
+    conn.commit()
+    
+    df = wide_to_long_by_month(df, month_stubs)
+    df = create_eligibility_date_column(df)
+    insert_client_eligibility_base(df, chunk_number)
+    conn.commit()
 
+    dw = wide_to_long(df, hcp_stubs)
+    insert_client_hcp_status(dw)
+    conn.commit()
+    del dw
+    
+    dw = wide_to_long(df, aidcode_stubs)
+    insert_client_eligibility_status(dw)
+    conn.commit()
+
+    #Merge in aidcode info.
+    df_aidcodes = get_aidcode_info()
+    dw = merge_aidcode_info(dw, df_aidcodes)
+
+    elig = make_eligibility_bitmask(dw)
+    local = make_local_bitmask(dw)
+    covered = make_covered_bitmask(dw)
+    disabled = make_disabled_bitmask(dw)
+    foster = make_foster_bitmask(dw)
+
+    #dw = mcrank(dw, elig, local, covered)    
+    
+    #dw = make_primary_codes(dw, elig)
+    #dw = make_disabled_column(dw, elig, disabled)
+    #dw = make_foster_column(dw, elig, foster)
+    #dw = make_retromc_column(dw)
+    #dw = make_ssi_column(dw, ssicodes)
+    #dw = make_ccsaidcode_column(dw, ccscodes)
+    #dw = make_ihssaidcode_column(dw, ihsscodes)
+    #dw = make_socmc_column(dw)
+    
 if __name__ == "__main__":
-
-    stubs = ["eligibility_year", "eligibility_month", "aidcode_sp0",
-             "responsible_county_sp0", "resident_county", "eligibility_status_sp0", 
-             "share_of_cost_amount", "medicare_status", "carrier_code", 
-             "federal_contract_number", "plan_id", "plan_type",
-             "health_care_plan_status_s0", "health_care_plan_code_s0",
-             "other_health_coverage", "surs_code", "aidcode_sp1", 
-             "responsible_county_sp1", "eligibility_status_sp1", "aidcode_sp2",
-             "responsible_county_sp2", "eligibility_status_sp2", "special_obligation",
-             "healthy_families_date", "aidcode_sp3", "responsible_county_sp3",
-             "eligibility_status_sp3", "health_care_plan_status_s1",
-             "health_care_plan_code_s1", "health_care_plan_status_s2", 
-             "health_care_plan_code_s2"]
+    
+    aidcode_stubs = ['aidcode', 'eligibility_status', 'responsible_county']
+    
+    hcp_stubs = ['health_care_plan_status', 'health_care_plan_code']
+    
+    month_stubs = ["eligibility_year", "eligibility_month", "aidcode_sp0",
+                   "responsible_county_sp0", "resident_county", "eligibility_status_sp0",
+                   "share_of_cost_amount", "medicare_status", "carrier_code", 
+                   "federal_contract_number", "plan_id", "plan_type",
+                   "health_care_plan_status_s0", "health_care_plan_code_s0",
+                   "other_health_coverage", "surs_code", "aidcode_sp1", 
+                   "responsible_county_sp1", "eligibility_status_sp1", "aidcode_sp2",
+                   "responsible_county_sp2", "eligibility_status_sp2", "special_obligation",
+                   "healthy_families_date", "aidcode_sp3", "responsible_county_sp3",
+                   "eligibility_status_sp3", "health_care_plan_status_s1",
+                   "health_care_plan_code_s1", "health_care_plan_status_s2", 
+                   "health_care_plan_code_s2"]
     
     medical_file = config.medical_file
 
@@ -316,5 +442,6 @@ if __name__ == "__main__":
 
     for chunk_number, chunk in enumerate(chunked_data_iterator):
         with psycopg2.connect(database="medical", user='greg') as conn:
-            process_chunk(chunk, chunk_number, chunksize, dupemask)
+            with conn.cursor() as cur:
+                process_chunk(chunk, chunk_number, chunksize, dupemask)
 
