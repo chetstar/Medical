@@ -1,5 +1,10 @@
 Files:
-db_aidcodes.py - csv formatted for copying into medical db.
+
+db_aidcodes.csv - csv formatted for copying into medical db.
+db_hcp_status_codes.csv
+db_county_codes.csv
+
+copy.sql - copy commands to bring .csv files into db.
 schema.sql - schema file for medical db.
 
 How to setup medical db.
