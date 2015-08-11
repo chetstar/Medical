@@ -149,6 +149,25 @@ CREATE TABLE "client_eligibility_status" (
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
 );
 
+CREATE TABLE "client_derived_status" (
+       "id" BIGSERIAL PRIMARY KEY,
+       "cin" TEXT NOT NULL,
+       "source_date" DATE NOT NULL,
+       "eligibility_date" DATE NOT NULL,
+       "rank" SMALLINT NOT NULL,
+       "primary_aidcode" TEXT,
+       "disabled" BOOLEAN NOT NULL,
+       "foster" BOOLEAN NOT NULL,
+       "retro" BOOLEAN NOT NULL,
+       "ssi" BOOLEAN NOT NULL,
+       "ccs" BOOLEAN NOT NULL,
+       "ihss" BOOLEAN NOT NULL,
+       "soc" BOOLEAN NOT NULL,
+       CONSTRAINT client_derived_status_UQ_cin_date_date UNIQUE
+       		  (cin, source_date, eligibility_date)
+);
+       
+
 /*
 INSERT INTO client_eligibility_status (cin, "date", cardinal, aidcode) 
 VALUES 
