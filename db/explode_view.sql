@@ -49,46 +49,65 @@ WITH sp0 AS (
      FROM client_eligibility_status ES
      	  LEFT JOIN aidcodes AC
 	  ON ES.aidcode = AC.aidcode
-     WHERE cardinal = 3)
+     WHERE cardinal = 3),
+
+     plantext AS (
+     SELECT CHS.cin, CHS.source_date, CHS.eligibility_date, IHC.plan_name
+     FROM client_hcp_status CHS
+     	  LEFT JOIN info_hcp_codes IHC
+	  ON CHS.hcp_code = IHC.plan_code
+     WHERE cardinal = 0)
 
 SELECT sp0.cin,
-       sp0.source_date AS calendar,
-       sp0.eligibility_date AS medsmonth,
+       sp0.source_date AS medsmonth,
+       sp0.eligibility_date AS calendar,
+       to_char(sp0.eligibility_date, 'MON') AS elig_month,
+       to_char(sp0.eligibility_date, 'YYYY') AS elig_year,
 
-       sp0.aidcode,
-       sp0.eligibility_status,
-       sp0.responsible_county,
-       sp0.fully_covered AS full,
+       CAST(sp0.aidcode AS varchar(3)),
+       CAST(sp0.eligibility_status AS varchar(3)),
+       CAST(sp0.responsible_county AS varchar(2)),
+       boolean_to_smallint(sp0.fully_covered) AS full,
        sp0.federal_financial_participation AS ffp,
 
-       sp1.aidcode AS aidcode_sp1,
-       sp1.eligibility_status AS eligibility_status_sp1,
-       sp1.responsible_county AS responsible_county_sp1,
-       sp1.fully_covered AS full_sp1,
+       CAST(sp1.aidcode AS varchar(3)) AS aidcode_sp1,
+       CAST(sp1.eligibility_status AS varchar(3)) AS eligibility_status_sp1,
+       CAST(sp1.responsible_county AS varchar(2)) AS responsible_county_sp1,
+       boolean_to_smallint(sp1.fully_covered) AS full_sp1,
        sp1.federal_financial_participation AS ffp_sp1,
 
-       sp2.aidcode AS aidcode_sp2,
-       sp2.eligibility_status AS eligibility_status_sp2,
-       sp2.responsible_county AS responsible_county_sp2,
-       sp2.fully_covered AS full_sp2,
+       CAST(sp2.aidcode AS varchar(3)) AS aidcode_sp2,
+       CAST(sp2.eligibility_status AS varchar(3)) AS eligibility_status_sp2,
+       CAST(sp2.responsible_county AS varchar(2)) AS responsible_county_sp2,
+       boolean_to_smallint(sp2.fully_covered) AS full_sp2,
        sp2.federal_financial_participation AS ffp_sp2,
 
-       sp3.aidcode AS aidcode_sp3,
-       sp3.eligibility_status AS eligibility_status_sp3,
-       sp3.responsible_county AS responsible_county_sp3,
-       sp3.fully_covered AS full_sp3,
+       CAST(sp3.aidcode AS varchar(3)) AS aidcode_sp3,
+       CAST(sp3.eligibility_status AS varchar(3)) AS eligibility_status_sp3,
+       CAST(sp3.responsible_county AS varchar(2)) AS responsible_county_sp3,
+       boolean_to_smallint(sp3.fully_covered) AS full_sp3,
        sp3.federal_financial_participation AS ffp_sp3,
 
        CDS.primary_aidcode,
-       CDS.ssi,
+       boolean_to_smallint(CDS.ssi),
        CDS.rank AS mcrank,
-       CDS.ccs,
-       CDS.ihss,
-       CDS.foster,
-       CDS.disabled,
-       CDS.soc,
-       CDS.retro AS retromc
-       
+       boolean_to_varchar(CDS.ccs) AS ccsaidcode,
+       boolean_to_varchar(CDS.ihss) AS ihssaidcode,
+       boolean_to_smallint(CDS.foster),
+       boolean_to_smallint(CDS.disabled),
+       boolean_to_smallint(CDS.soc) AS socmc,
+       boolean_to_smallint(CDS.retro) AS retromc,
+       CDS.primary_county_code AS eligibility_county_code,
+
+       CEB.soc_amount AS socamount,
+       CEB.medicare_status,
+       CEB.other_health_coverage AS ohc,
+
+       CHS.hcp_code,
+       CHS.hcp_status,
+
+       PT.plan_name AS hcplantext
+     
 FROM sp0
      INNER JOIN sp1
      ON sp0.cin = sp1.cin
@@ -106,3 +125,17 @@ FROM sp0
      ON sp0.cin = CDS.cin
      AND sp0.eligibility_date = CDS.eligibility_date
      AND sp0.source_date = CDS.source_date
+     INNER JOIN client_eligibility_base CEB
+     ON sp0.cin = CEB.cin
+     AND sp0.eligibility_date = CEB.eligibility_date
+     AND sp0.source_date = CEB.source_date
+     INNER JOIN client_hcp_status CHS
+     ON sp0.cin = CHS.cin
+     AND sp0.eligibility_date = CHS.eligibility_date
+     AND sp0.source_date = CHS.source_date
+     INNER JOIN plantext PT
+     ON sp0.cin = PT.cin
+     AND sp0.eligibility_date = PT.eligibility_date
+     AND sp0.source_date = PT.source_date
+
+WHERE CHS.cardinal = 0

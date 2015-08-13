@@ -9,3 +9,7 @@ WITH CSV;
 COPY hcp_statuses (code, desciption)
 FROM '/Users/greg/code/medical/db/db_hcp_status_codes.csv'
 WITH CSV;
+
+COPY info_hcp_codes (plan_code, plan_name)
+FROM '/Users/greg/code/medical/db/db_hcp_text.csv'
+WITH CSV;

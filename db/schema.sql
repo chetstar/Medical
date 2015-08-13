@@ -98,6 +98,7 @@ CREATE TABLE "client_eligibility_base" (
        "surs_code" TEXT,
        "special_obligation" TEXT,
        "healthy_families_date" DATE,
+       "other_health_coverage" TEXT, --Constrain to list, constrain by length.
        CONSTRAINT client_eligibility_base_UQ_cin_date_date UNIQUE
        		  (cin, source_date, eligibility_date),
        CONSTRAINT client_eligibility_base_FK_cin FOREIGN KEY (cin)
@@ -139,8 +140,8 @@ CREATE TABLE "client_eligibility_status" (
        "eligibility_status" TEXT, --Still needs a constraint.(needs table of valid statuses)
        "responsible_county" TEXT,
        CONSTRAINT client_eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
-       CONSTRAINT client_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
-       		  REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,
+       /*CONSTRAINT client_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
+       		  REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,*/
        CONSTRAINT client_eligibility_status_UQ_cin_date_date_cardinal UNIQUE
        		  (cin, source_date, eligibility_date, cardinal),
        CONSTRAINT client_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
@@ -156,6 +157,7 @@ CREATE TABLE "client_derived_status" (
        "eligibility_date" DATE NOT NULL,
        "rank" SMALLINT NOT NULL,
        "primary_aidcode" TEXT,
+       "primary_county_code" TEXT,
        "disabled" BOOLEAN NOT NULL,
        "foster" BOOLEAN NOT NULL,
        "retro" BOOLEAN NOT NULL,
@@ -167,7 +169,11 @@ CREATE TABLE "client_derived_status" (
        		  (cin, source_date, eligibility_date)
 );
        
-
+CREATE TABLE "info_hcp_codes" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "plan_code" TEXT NOT NULL,
+       "plan_name" TEXT NOT NULL
+       )
 /*
 INSERT INTO client_eligibility_status (cin, "date", cardinal, aidcode) 
 VALUES 

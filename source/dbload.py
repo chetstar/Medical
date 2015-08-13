@@ -229,7 +229,7 @@ def insert_client_eligibility_base(df, chunk_number):
     df_columns = ['cin', 'source_date', 'resident_county', 'share_of_cost_amount',
                   'medicare_status', 'carrier_code', 'federal_contract_number', 'plan_id',
                   'plan_type', 'surs_code', 'special_obligation', 'healthy_families_date',
-                  'eligibility_date']
+                  'eligibility_date', 'other_health_coverage']
 
     df = convert_nans_to_nones(df, df_columns)
 
@@ -237,8 +237,8 @@ def insert_client_eligibility_base(df, chunk_number):
           INSERT INTO client_eligibility_base
               (cin, source_date, resident_county, soc_amount, medicare_status, carrier_code, 
                federal_contract_number, plan_id, plan_type, surs_code, special_obligation,
-               healthy_families_date, eligibility_date)
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+               healthy_families_date, eligibility_date, other_health_coverage)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
     
     try:
         cur.executemany(sql, df[df_columns].values)
@@ -418,12 +418,13 @@ def make_socmc_column(dw):
 def insert_client_derived_status(df):
     sql = """INSERT INTO client_derived_status
           (cin, source_date, eligibility_date, rank, primary_aidcode, disabled,
-           foster, retro, ssi, ccs, ihss, soc)
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
-
+           foster, retro, ssi, ccs, ihss, soc, primary_county_code)
+          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+    print(df.eligibility_county_code)
     client_derived_columns = ['cin', 'source_date', 'eligibility_date', 'mcrank',
                               'primary_aidcode', 'disabled', 'foster', 'retromc',
-                              'ssi', 'ccsaidcode', 'ihssaidcode', 'socmc']
+                              'ssi', 'ccsaidcode', 'ihssaidcode', 'socmc',
+                              'eligibility_county_code']
 
     df = convert_nans_to_nones(df, client_derived_columns)
     cur.executemany(sql, df[client_derived_columns].values)
@@ -436,7 +437,8 @@ def keep_best_mcrank(dw):
     return dw
 
 def no_nulls(dw):
-    no_null_cols = ['disabled', 'foster', 'retromc', 'ssi', 'ccsaidcode', 'ihssaidcode', 'socmc']
+    no_null_cols = ['disabled', 'foster', 'retromc', 'ssi', 'ccsaidcode',
+                    'ihssaidcode', 'socmc']
     dw.loc[:,no_null_cols] = dw[no_null_cols].fillna(False)
     return dw
 
@@ -510,10 +512,10 @@ if __name__ == "__main__":
     
     month_stubs = ["eligibility_year", "eligibility_month", "aidcode_sp0",
                    "responsible_county_sp0", "resident_county", "eligibility_status_sp0",
-                   "share_of_cost_amount", "medicare_status", "carrier_code", 
+                   "share_of_cost_amount", "medicare_status", "carrier_code",
                    "federal_contract_number", "plan_id", "plan_type",
                    "health_care_plan_status_s0", "health_care_plan_code_s0",
-                   "other_health_coverage", "surs_code", "aidcode_sp1", 
+                   "other_health_coverage", "surs_code", "aidcode_sp1",
                    "responsible_county_sp1", "eligibility_status_sp1", "aidcode_sp2",
                    "responsible_county_sp2", "eligibility_status_sp2", "special_obligation",
                    "healthy_families_date", "aidcode_sp3", "responsible_county_sp3",
