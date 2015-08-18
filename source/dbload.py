@@ -65,7 +65,6 @@ CREATE TEMP TABLE "staging_attributes" (
 );
 
 CREATE TEMP TABLE "staging_names" (
-       -- (Tested, works)
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE,
@@ -78,16 +77,14 @@ CREATE TEMP TABLE "staging_names" (
 );
 
 CREATE TEMP TABLE "staging_addresses" (
-       -- (Tested, works)
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE NOT NULL,
-       "street" TEXT,
+       "street_address" TEXT,
        "unit" TEXT,
        "city" TEXT,
-       "state" TEXT, --Constrain to list?
+       "state" TEXT,
        "zip" TEXT,
-       "raw" TEXT, --Unparsed address.
        CONSTRAINT staging_addresses_FK_cin FOREIGN KEY (cin)
        		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT       
 )
@@ -118,7 +115,8 @@ def populate_staging_attributes(df):
     cur.executemany(sql, df[df_columns].values)
 
 def populate_staging_names(df):
-    name_columns = ['cin', 'first_name', 'middle_initial', 'last_name', 'name_suffix', 'source_date']
+    name_columns = ['cin', 'first_name', 'middle_initial', 'last_name',
+                    'name_suffix', 'source_date']
 
     df = convert_nans_to_nones(df, name_columns)
 
@@ -135,15 +133,18 @@ def create_source_date_column(df):
     return df
 
 def populate_staging_addresses(df):
+    df['street_address'] = (df['address_line_1'].fillna('') + ' ' +
+                            df['address_line_2'])
+    df['street_address'].str.strip()
 
-    df_columns = ['cin', 'address_line_1', 'address_line_2', 'address_state',
+    df_columns = ['cin', 'street_address', 'address_state',
                   'address_city', 'address_zip_code', 'source_date']
 
     df = convert_nans_to_nones(df, df_columns)
     
     sql = """INSERT INTO staging_addresses
-             (cin, street, unit, state, city, zip, source_date)
-             VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+             (cin, street_address, state, city, zip, source_date)
+             VALUES (%s, %s, %s, %s, %s, %s)"""
 
     cur.executemany(sql, df[df_columns].values)
 
@@ -187,8 +188,8 @@ def insert_new_client_addresses():
     sql = """
           --Insert address for new clients.
           INSERT INTO client_addresses
-              (cin, source_date, street, unit, city, state, zip, raw)
-          SELECT S.cin, source_date, street, unit, city, state, zip, raw
+              (cin, source_date, street_address, city, state, zip)
+          SELECT S.cin, source_date, street_address, city, state, zip
           FROM new_cins N
               INNER JOIN staging_addresses S
               ON N.cin = S.cin;"""

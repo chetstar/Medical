@@ -74,12 +74,10 @@ CREATE TABLE "client_addresses" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE NOT NULL,
-       "street" TEXT,
-       "unit" TEXT,
+       "street_address" TEXT,
        "city" TEXT,
        "state" TEXT, --Constrain to list?
-       "zip" TEXT,
-       "raw" TEXT,
+       "zip" TEXT, --Constrain length, digits only.
        CONSTRAINT client_addresses_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
 );
