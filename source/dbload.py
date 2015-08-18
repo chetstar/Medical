@@ -42,23 +42,23 @@ def set_language(df):
     return df
 
 def create_staging_tables():
-    sql = """CREATE TEMP TABLE "staging_attributes" (
-       -- (Tested, works)
-       -- cin = client index number
-       -- hic = health insurance claim
+    sql = """
+CREATE TEMP TABLE "staging_attributes" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "date_of_birth" DATE,
        "meds_id" TEXT,
-       "hic_number" TEXT, 
-       "hic_suffix" TEXT,
+       "health_insurance_claim_number" TEXT, 
+       "health_insurance_claim_suffix" TEXT,
        "ethnicity" TEXT, --Make table to constrain to. Store English term, not code.
        "sex" SEX_ENUM, 
        "primary_language" TEXT, --Make table to constrain to. Store English term, not code.
        CONSTRAINT staging_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
        CONSTRAINT staging_attributes_CK_meds_id_length CHECK (char_length(meds_id) <= 9),
-       CONSTRAINT staging_attributes_CK_hic_number_length CHECK (char_length(hic_number) <= 9),
-       CONSTRAINT staging_attributes_CK_hic_suffix_length CHECK (char_length(hic_suffix) <= 2),
+       CONSTRAINT staging_attributes_CK_hic_number_length CHECK 
+                  (char_length(health_insurance_claim_number) <= 9),
+       CONSTRAINT staging_attributes_CK_hic_suffix_length CHECK 
+                  (char_length(health_insurance_claim_suffix) <= 2),
        CONSTRAINT staging_attributes_CK_date CHECK 
        		  (date_of_birth > to_date('1895-01-01','YYYY-MM-DD')),
        CONSTRAINT staging_attributes_UQ_cin UNIQUE (cin)
@@ -94,7 +94,7 @@ CREATE TEMP TABLE "staging_addresses" (
        "source" TEXT,
        CONSTRAINT staging_addresses_FK_cin FOREIGN KEY (cin)
        		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT       
-);
+)
 """
     cur.execute(sql)
     
@@ -115,7 +115,8 @@ def populate_staging_attributes(df):
     df = convert_nans_to_nones(df, df_columns)
     
     sql = """INSERT INTO staging_attributes 
-             (cin, date_of_birth, meds_id, hic_number, hic_suffix, ethnicity, sex, primary_language) 
+             (cin, date_of_birth, meds_id, health_insurance_claim_number,
+             health_insurance_claim_suffix, ethnicity, sex, primary_language)
              VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
 
     cur.executemany(sql, df[df_columns].values)
@@ -205,9 +206,10 @@ def insert_new_client_addresses():
 def insert_new_client_attributes():
     sql = """--Insert attributes for new clients
           INSERT INTO client_attributes
-              (cin, date_of_birth, meds_id, hic_number, 
-               hic_suffix, ethnicity, sex, primary_language)
-          SELECT S.cin, S.date_of_birth, S.meds_id, S.hic_number, S.hic_suffix, 
+              (cin, date_of_birth, meds_id, health_insurance_claim_number, 
+               health_insurance_claim_suffix, ethnicity, sex, primary_language)
+          SELECT S.cin, S.date_of_birth, S.meds_id, 
+              S.health_insurance_claim_number, S.health_insurance_claim_suffix, 
               S.ethnicity, S.sex, S.primary_language
           FROM new_cins N
               INNER JOIN staging_attributes S
@@ -216,11 +218,10 @@ def insert_new_client_attributes():
     cur.execute(sql)
 
 def insert_client_eligibility_base(df, chunk_number):
-    #cin,medical_date,resident_county,soc_amount,medicare_status,carrier_code,
-    #federal_contract_number,plan_id,plan_type,surs_code,special_obligation,healthy_families_date
-    df_columns = ['cin', 'source_date', 'resident_county', 'share_of_cost_amount',
-                  'medicare_status', 'carrier_code', 'federal_contract_number', 'plan_id',
-                  'plan_type', 'surs_code', 'special_obligation', 'healthy_families_date',
+    df_columns = ['cin', 'source_date', 'resident_county',
+                  'share_of_cost_amount', 'medicare_status', 'carrier_code',
+                  'federal_contract_number', 'plan_id', 'plan_type',
+                  'surs_code', 'special_obligation', 'healthy_families_date',
                   'eligibility_date', 'other_health_coverage']
 
     df = convert_nans_to_nones(df, df_columns)
