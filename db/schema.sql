@@ -1,4 +1,4 @@
-CREATE TABLE "aidcodes" (
+CREATE TABLE "rules_aidcodes" (
        "id" SMALLSERIAL PRIMARY KEY,
        "aidcode" TEXT NOT NULL,
        "federal_financial_participation" SMALLINT NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE "aidcodes" (
        		  (federal_financial_participation IN (0,50,65,100))
 );
 
-CREATE TABLE "county_codes" (
+CREATE TABLE "rules_county_codes" (
        --Contains all 58 valid county codes with names for the state of California.
        "id" SMALLSERIAL PRIMARY KEY,
        "county_code" TEXT,
@@ -21,13 +21,13 @@ CREATE TABLE "county_codes" (
        CONSTRAINT county_codes_UQ_county_code UNIQUE (county_code)
 );
 
-CREATE TABLE "hcp_statuses" (
+CREATE TABLE "rules_hcp_status_codes" (
        --Contains all valid hcp_status codes with descriptions.
        "id" SMALLSERIAL PRIMARY KEY,
        "code" TEXT NOT NULL,
        "desciption" TEXT NOT NULL,
-       CONSTRAINT hcp_statuses_CK_code CHECK (char_length(code) <= 2),
-       CONSTRAINT hcp_statuses_UQ_code UNIQUE (code)
+       CONSTRAINT hcp_status_codes_CK_code CHECK (char_length(code) <= 2),
+       CONSTRAINT hcp_status_codes_UQ_code UNIQUE (code)
 );
 
 CREATE TYPE sex_enum AS ENUM ('Male','Female','Intersex','Unknown','Other');
@@ -104,7 +104,7 @@ CREATE TABLE "client_eligibility_base" (
        CONSTRAINT client_eligibility_base_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
        CONSTRAINT client_eligiblity_base_FK_resident_county FOREIGN KEY (resident_county)
-       		  REFERENCES county_codes (county_code) ON DELETE RESTRICT,
+       		  REFERENCES rules_county_codes (county_code) ON DELETE RESTRICT,
        CONSTRAINT client_eligibility_base_CK_medicare_status CHECK
        		  (char_length(medicare_status) <= 3),
        CONSTRAINT client_eligibility_base_CK_carrier_code CHECK (char_length(carrier_code) <= 4),
@@ -119,13 +119,13 @@ CREATE TABLE "client_hcp_status" (
        "source_date" DATE NOT NULL,
        "eligibility_date" DATE NOT NULL,
        "cardinal" SMALLINT,
-       "hcp_status" TEXT,
+       "hcp_status_code" TEXT,
        "hcp_code" TEXT,
        CONSTRAINT client_hcp_status_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
        CONSTRAINT client_hcp_status_CK_cardinal CHECK (cardinal IN (0,1,2)),
-       CONSTRAINT client_hcp_status_FK_hcp_status FOREIGN KEY (hcp_status)
-       		  REFERENCES hcp_statuses (code) ON DELETE RESTRICT,
+       CONSTRAINT client_hcp_status_FK_hcp_status FOREIGN KEY (hcp_status_code)
+       		  REFERENCES rules_hcp_status_codes (code) ON DELETE RESTRICT,
        CONSTRAINT client_hcp_status_UQ_cin_date_date_cardinal UNIQUE
        		  (cin, source_date, eligibility_date, cardinal)
 );
@@ -141,11 +141,11 @@ CREATE TABLE "client_eligibility_status" (
        "responsible_county" TEXT,
        CONSTRAINT client_eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
        /*CONSTRAINT client_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
-       		  REFERENCES aidcodes (aidcode) ON DELETE RESTRICT,*/
+       		  REFERENCES rules_aidcodes (aidcode) ON DELETE RESTRICT,*/
        CONSTRAINT client_eligibility_status_UQ_cin_date_date_cardinal UNIQUE
        		  (cin, source_date, eligibility_date, cardinal),
        CONSTRAINT client_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
-       		  REFERENCES county_codes (county_code) ON DELETE RESTRICT,
+       		  REFERENCES rules_county_codes (county_code) ON DELETE RESTRICT,
        CONSTRAINT client_eligibility_status_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
 );
@@ -169,7 +169,7 @@ CREATE TABLE "client_derived_status" (
        		  (cin, source_date, eligibility_date)
 );
        
-CREATE TABLE "info_hcp_codes" (
+CREATE TABLE "rules_hcp_codes" (
        "id" SMALLSERIAL PRIMARY KEY,
        "plan_code" TEXT NOT NULL,
        "plan_name" TEXT NOT NULL

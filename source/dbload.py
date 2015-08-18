@@ -178,14 +178,6 @@ def populate_new_cins_table():
     cur.execute(create)
     cur.execute(populate)
         
-def update_existing_client_attributes():
-    pass
-
-def update_client_names():
-    """For existing clients if the name fields have changed add a new entry.
-    For new clients add a new entry."""
-    pass
-
 def insert_new_client_names():
     sql = """
           --Insert names for new clients
@@ -297,7 +289,7 @@ def insert_client_hcp_status(dw):
     
     sql = """
           INSERT INTO client_hcp_status
-          (cin, source_date, eligibility_date, hcp_status, hcp_code, cardinal)
+          (cin, source_date, eligibility_date, hcp_status_code, hcp_code, cardinal)
           VAlUES (%s, %s, %s, %s, %s, %s); """
 
     try:
@@ -320,7 +312,7 @@ def get_aidcode_info():
     
     sql = """
           SELECT aidcode, federal_financial_participation, fully_covered, disabled, foster
-          FROM aidcodes """
+          FROM rules_aidcodes """
 
     cur.execute(sql)
     records = cur.fetchall()
@@ -420,15 +412,25 @@ def insert_client_derived_status(df):
           (cin, source_date, eligibility_date, rank, primary_aidcode, disabled,
            foster, retro, ssi, ccs, ihss, soc, primary_county_code)
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
-    print(df.eligibility_county_code)
+    
     client_derived_columns = ['cin', 'source_date', 'eligibility_date', 'mcrank',
                               'primary_aidcode', 'disabled', 'foster', 'retromc',
                               'ssi', 'ccsaidcode', 'ihssaidcode', 'socmc',
                               'eligibility_county_code']
 
     df = convert_nans_to_nones(df, client_derived_columns)
-    cur.executemany(sql, df[client_derived_columns].values)
 
+    try:
+        cur.executemany(sql, df[client_derived_columns].values)
+    except psycopg2.IntegrityError as e:
+        if e.pgcode == '23505':
+            print('Some derived_status rows in chunk {} have already been inserted'.format(chunk_number))
+            conn.commit()
+        else:
+            raise e
+    finally:
+        conn.commit()
+        
 def keep_best_mcrank(dw):
     """Groupby cin and calendar and keep only the row with the best mcrank for each group."""
     dw = dw.sort('mcrank', ascending = True).groupby(['cin', 'eligibility_date']).first()
@@ -442,6 +444,20 @@ def no_nulls(dw):
     dw.loc[:,no_null_cols] = dw[no_null_cols].fillna(False)
     return dw
 
+def update_client_names():
+    sql = """
+          SELECT S.* 
+          FROM staging_names S
+               LEFT JOIN client_names C
+               ON S.cin = C.cin
+          WHERE S.first_name IS DISTINCT FROM C.first_name
+               OR S.last_name IS DISTINCT FROM C.last_name
+               OR S.middle_initial IS DISTINCT FROM C.middle_initial
+               OR S.suffix IS DISTINCT FROM C.suffix
+    ;"""
+
+    cur.execute(sql)
+    
 def process_chunk(df, chunk_number, chunksize, dupemask):
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
@@ -454,7 +470,7 @@ def process_chunk(df, chunk_number, chunksize, dupemask):
     conn.commit()
     #update_existing_client_attributes()
     insert_new_client_attributes()
-    #update_client_names()
+    update_client_names()
     insert_new_client_names()
     #update_client_addresses()
     insert_new_client_addresses()
