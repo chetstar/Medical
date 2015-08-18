@@ -61,13 +61,10 @@ CREATE TABLE "client_attributes" (
 CREATE TABLE "client_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "source" TEXT,
        "source_date" DATE,
        "first_name" TEXT,
-       "middle_name" TEXT,
-       "last_name" TEXT,
        "middle_initial" TEXT,
-       "full_name" TEXT,
+       "last_name" TEXT,
        "suffix" TEXT,
        CONSTRAINT client_names_FK_cin FOREIGN KEY (cin)
        		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
@@ -81,11 +78,10 @@ CREATE TABLE "client_addresses" (
        "unit" TEXT,
        "city" TEXT,
        "state" TEXT, --Constrain to list?
-       "zip" TEXT, --How to deal with zip+4?
-       "raw" TEXT, --Unparsed address.
-       "source" TEXT,
+       "zip" TEXT,
+       "raw" TEXT,
        CONSTRAINT client_addresses_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT       
+       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
 );
 
 CREATE TABLE "client_eligibility_base" (

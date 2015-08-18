@@ -68,13 +68,10 @@ CREATE TEMP TABLE "staging_names" (
        -- (Tested, works)
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "source" TEXT,
        "source_date" DATE,
        "first_name" TEXT,
-       "middle_name" TEXT,
-       "last_name" TEXT,
        "middle_initial" TEXT,
-       "full_name" TEXT,
+       "last_name" TEXT,
        "suffix" TEXT,
        CONSTRAINT staging_names_FK_cin FOREIGN KEY (cin)
        		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT
@@ -89,9 +86,8 @@ CREATE TEMP TABLE "staging_addresses" (
        "unit" TEXT,
        "city" TEXT,
        "state" TEXT, --Constrain to list?
-       "zip" TEXT, --How to deal with zip+4?
+       "zip" TEXT,
        "raw" TEXT, --Unparsed address.
-       "source" TEXT,
        CONSTRAINT staging_addresses_FK_cin FOREIGN KEY (cin)
        		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT       
 )
@@ -122,15 +118,15 @@ def populate_staging_attributes(df):
     cur.executemany(sql, df[df_columns].values)
 
 def populate_staging_names(df):
-    df_columns = ['cin', 'first_name', 'middle_initial', 'last_name', 'name_suffix', 'source_date', 'source']
+    name_columns = ['cin', 'first_name', 'middle_initial', 'last_name', 'name_suffix', 'source_date']
 
-    df = convert_nans_to_nones(df, df_columns)
+    df = convert_nans_to_nones(df, name_columns)
 
     sql = """INSERT INTO staging_names
-             (cin, first_name, middle_initial, last_name, suffix, source_date, source)
-             VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+             (cin, first_name, middle_initial, last_name, suffix, source_date)
+             VALUES (%s, %s, %s, %s, %s, %s)"""
 
-    cur.executemany(sql, df[df_columns].values)
+    cur.executemany(sql, df[name_columns].values)
         
 def create_source_date_column(df):
     source_date = datetime(int(df['eligibility_year_0'][df.index[0]]),
@@ -138,20 +134,16 @@ def create_source_date_column(df):
     df['source_date'] = source_date
     return df
 
-def create_source_column(df):
-    df['source'] = 'Medi-Cal'
-    return df
-
 def populate_staging_addresses(df):
 
     df_columns = ['cin', 'address_line_1', 'address_line_2', 'address_state',
-                  'address_city', 'address_zip_code', 'source_date', 'source']
+                  'address_city', 'address_zip_code', 'source_date']
 
     df = convert_nans_to_nones(df, df_columns)
     
     sql = """INSERT INTO staging_addresses
-             (cin, street, unit, state, city, zip, source_date, source)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+             (cin, street, unit, state, city, zip, source_date)
+             VALUES (%s, %s, %s, %s, %s, %s, %s)"""
 
     cur.executemany(sql, df[df_columns].values)
 
@@ -447,36 +439,38 @@ def no_nulls(dw):
 
 def update_client_names():
     sql = """
-          SELECT S.* 
-          FROM staging_names S
-               LEFT JOIN client_names C
-               ON S.cin = C.cin
-          WHERE S.first_name IS DISTINCT FROM C.first_name
-               OR S.last_name IS DISTINCT FROM C.last_name
-               OR S.middle_initial IS DISTINCT FROM C.middle_initial
-               OR S.suffix IS DISTINCT FROM C.suffix
-    ;"""
+    INSERT INTO client_names (cin, source_date, first_name,
+         middle_initial, last_name, suffix)
+    SELECT S.cin, S.source_date, S.first_name, S.middle_initial, 
+         S.last_name, S.suffix
+    FROM staging_names S
+         LEFT JOIN client_names C
+         ON S.cin = C.cin
+    WHERE S.first_name IS DISTINCT FROM C.first_name
+         OR S.last_name IS DISTINCT FROM C.last_name
+         OR S.middle_initial IS DISTINCT FROM C.middle_initial
+         OR S.suffix IS DISTINCT FROM C.suffix
+    """
 
     cur.execute(sql)
-    
+
 def process_chunk(df, chunk_number, chunksize, dupemask):
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
-    df = create_source_column(df)
     create_staging_tables()
     populate_staging_attributes(df)
     populate_staging_names(df)
     populate_staging_addresses(df)
     populate_new_cins_table()
     conn.commit()
-    #update_existing_client_attributes()
     insert_new_client_attributes()
-    update_client_names()
     insert_new_client_names()
+    update_client_names()
     #update_client_addresses()
+    #update_existing_client_attributes()
     insert_new_client_addresses()
     conn.commit()
-    
+
     df = wide_to_long_by_month(df, month_stubs)
     df = create_eligibility_date_column(df)
     insert_client_eligibility_base(df, chunk_number)
