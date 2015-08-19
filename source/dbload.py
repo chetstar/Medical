@@ -210,29 +210,6 @@ def insert_new_client_attributes():
 
     cur.execute(sql)
 
-def upsert_client_attributes():
-    sql = """
-    INSERT INTO client_attributes (cin, date_of_birth, meds_id,
-         health_insurance_claim_number, health_insurance_claim_suffix,
-         ethnicity, sex, primary_language)
-    SELECT S.cin, S.date_of_birth, S.meds_id,
-         S.health_insurance_claim_number, S.health_insurance_claim_suffix,
-         S.ethnicity, S.sex, S.primary_language
-    FROM staging_attributes S
-         LEFT JOIN client_attributes C
-         ON S.cin = C.cin
-    WHERE S.date_of_birth IS DISTINCT FROM C.date_of_birth
-         OR S.meds_id IS DISTINCT FROM C.meds_id
-         OR S.health_insurance_claim_number IS DISTINCT FROM
-              C.health_insurance_claim_number
-         OR S.health_insurance_claim_suffix IS DISTINCT FROM
-              C.health_insurance_claim_suffix
-         OR S.ethnicity IS DISTINCT FROM C.ethnicity
-         OR S.sex IS DISTINCT FROM C.sex
-         OR S.primary_language IS DISTINCT FROM C.primary_language
-    """
-    cur.execute(sql)
-
 def update_client_attributes():
     sql = """
     UPDATE client_attributes 
@@ -533,7 +510,6 @@ def process_chunk(df, chunk_number, chunksize, dupemask):
     populate_staging_addresses(df)
     populate_new_cins_table()
     conn.commit()
-    #upsert_client_attributes()
     insert_new_client_attributes()
     insert_new_client_names()
     insert_new_client_addresses()
