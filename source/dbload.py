@@ -316,7 +316,7 @@ def get_aidcode_info():
 
 def make_eligibility_bitmask(dw):
     elig = dw['eligibility_status'].dropna().str[0].astype(int).le(5).reindex(
-        index = dw.index, fill_value = False) 
+        index = dw.index, fill_value = False)
     return elig
 
 def make_local_bitmask(dw):
@@ -455,6 +455,23 @@ def update_client_names():
 
     cur.execute(sql)
 
+def update_client_addresses():
+    sql = """
+    INSERT INTO client_addresses (cin, source_date, street_address,
+         city, state, zip)
+    SELECT S.cin, S.source_date, S.street_address, S.city,
+         S.state, S.zip
+    FROM staging_addresses S
+         LEFT JOIN client_addresses C
+         ON S.cin = C.cin
+    WHERE S.street_address IS DISTINCT FROM C.street_address
+         OR S.city IS DISTINCT FROM C.street_address
+         OR S.state IS DISTINCT FROM C.state
+         OR S.zip IS DISTINCT FROM C.zip
+    """
+
+    cur.execute(sql)
+    
 def process_chunk(df, chunk_number, chunksize, dupemask):
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
@@ -466,10 +483,10 @@ def process_chunk(df, chunk_number, chunksize, dupemask):
     conn.commit()
     insert_new_client_attributes()
     insert_new_client_names()
-    update_client_names()
-    #update_client_addresses()
-    #update_existing_client_attributes()
     insert_new_client_addresses()
+    update_client_names()
+    update_client_addresses()
+    #update_existing_client_attributes()
     conn.commit()
 
     df = wide_to_long_by_month(df, month_stubs)
