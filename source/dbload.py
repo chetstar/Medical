@@ -1,8 +1,12 @@
+import argparse
 import json 
 from datetime import datetime
+import multiprocessing as mp
 
 import psycopg2
 import pandas as pd
+import numpy as np
+from psycopg2.extensions import register_adapter, adapt
 
 import common
 import config
@@ -147,72 +151,25 @@ def populate_staging_addresses(df):
              VALUES (%s, %s, %s, %s, %s, %s)"""
 
     cur.executemany(sql, df[df_columns].values)
-
-def populate_new_cins_table():
-    """Create and populate new_cins table.  This table contains all cins that
-    are in staging_attributes that aren't in client_attributes."""
-    
-    create = """
-             --Create table for CINs that aren't in the database.
-             CREATE TEMP TABLE new_cins (
-             "id" SERIAL PRIMARY KEY,
-             "cin" TEXT NOT NULL UNIQUE
-             );"""
-    
-    populate = """
-             --Populate new_cins table. (Tested, works)
-             INSERT INTO new_cins (cin)
-             SELECT S.cin
-             FROM client_attributes C
-                 RIGHT OUTER JOIN staging_attributes S
-                 ON C.cin = S.cin
-             WHERE C.id IS NULL
-             ;"""
-
-    cur.execute(create)
-    cur.execute(populate)
-        
-def insert_new_client_names():
-    sql = """
-          --Insert names for new clients
-          INSERT INTO client_names
-              (cin, source_date, first_name, middle_initial, last_name)
-          SELECT S.cin, source_date AS creation_date, first_name, middle_initial, last_name
-          FROM new_cins N
-              INNER JOIN staging_names S
-              ON N.cin = S.cin;"""
-
-    cur.execute(sql)
-
-def insert_new_client_addresses():
-    sql = """
-          --Insert address for new clients.
-          INSERT INTO client_addresses
-              (cin, source_date, street_address, city, state, zip)
-          SELECT S.cin, source_date, street_address, city, state, zip
-          FROM new_cins N
-              INNER JOIN staging_addresses S
-              ON N.cin = S.cin;"""
-    
-    cur.execute(sql)
-        
-def insert_new_client_attributes():
+                
+def insert_new_medi_cal_attributes():
     sql = """--Insert attributes for new clients
-          INSERT INTO client_attributes
+          INSERT INTO medi_cal_attributes
               (cin, date_of_birth, meds_id, health_insurance_claim_number, 
                health_insurance_claim_suffix, ethnicity, sex, primary_language)
           SELECT S.cin, S.date_of_birth, S.meds_id, 
               S.health_insurance_claim_number, S.health_insurance_claim_suffix, 
               S.ethnicity, S.sex, S.primary_language
-          FROM new_cins N
-              INNER JOIN staging_attributes S
-              ON N.cin = S.cin;"""
+          FROM staging_attributes S
+              LEFT JOIN medi_cal_attributes M
+              ON S.cin = M.cin
+          WHERE M.id IS NULL"""
 
     cur.execute(sql)
 
-def update_client_attributes():
+def update_medi_cal_attributes():
     sql = """
-    UPDATE client_attributes 
+    UPDATE medi_cal_attributes 
     SET cin = S.cin,
         date_of_birth = S.date_of_birth,
         meds_id = S.meds_id,
@@ -225,21 +182,21 @@ def update_client_attributes():
               S.health_insurance_claim_number, S.health_insurance_claim_suffix,
               S.ethnicity, S.sex, S.primary_language
          FROM staging_attributes S
-              LEFT JOIN client_attributes C
-              ON S.cin = C.cin
-         WHERE S.date_of_birth IS DISTINCT FROM C.date_of_birth
-              OR S.meds_id IS DISTINCT FROM C.meds_id
+              LEFT JOIN medi_cal_attributes M
+              ON S.cin = M.cin
+         WHERE S.date_of_birth IS DISTINCT FROM M.date_of_birth
+              OR S.meds_id IS DISTINCT FROM M.meds_id
               OR S.health_insurance_claim_number IS DISTINCT FROM 
-                  C.health_insurance_claim_number
+                  M.health_insurance_claim_number
               OR S.health_insurance_claim_suffix IS DISTINCT FROM
-                  C.health_insurance_claim_suffix
-              OR S.ethnicity IS DISTINCT FROM C.ethnicity
-              OR S.sex IS DISTINCT FROM C.sex
-              OR S.primary_language IS DISTINCT FROM C.primary_language) S
+                  M.health_insurance_claim_suffix
+              OR S.ethnicity IS DISTINCT FROM M.ethnicity
+              OR S.sex IS DISTINCT FROM M.sex
+              OR S.primary_language IS DISTINCT FROM M.primary_language) S
     """
     cur.execute(sql)
 
-def insert_client_eligibility_base(df, chunk_number):
+def insert_medi_cal_eligibility_base(df, chunk_number):
     df_columns = ['cin', 'source_date', 'resident_county',
                   'share_of_cost_amount', 'medicare_status', 'carrier_code',
                   'federal_contract_number', 'plan_id', 'plan_type',
@@ -249,7 +206,7 @@ def insert_client_eligibility_base(df, chunk_number):
     df = convert_nans_to_nones(df, df_columns)
 
     sql = """
-          INSERT INTO client_eligibility_base
+          INSERT INTO medi_cal_eligibility_base
               (cin, source_date, resident_county, soc_amount, medicare_status, carrier_code, 
                federal_contract_number, plan_id, plan_type, surs_code, special_obligation,
                healthy_families_date, eligibility_date, other_health_coverage)
@@ -266,14 +223,14 @@ def insert_client_eligibility_base(df, chunk_number):
     finally:
         conn.commit()
         
-def insert_client_eligibility_status(dw):
+def insert_medi_cal_eligibility_status(dw, chunk_number):
     eligibility_status_columns = ['cin', 'source_date', 'eligibility_date', 'cardinal', 'aidcode',
                   'eligibility_status', 'responsible_county']
 
     dw = convert_nans_to_nones(dw, eligibility_status_columns)
 
     sql = """
-          INSERT INTO client_eligibility_status
+          INSERT INTO medi_cal_eligibility_status
               (cin, source_date, eligibility_date, cardinal, aidcode, eligibility_status,
                responsible_county)
           VALUES (%s, %s, %s, %s, %s, %s, %s); """
@@ -304,14 +261,14 @@ def wide_to_long(df, stubs):
     dw = dw.reset_index()
     return dw
 
-def insert_client_hcp_status(dw):
+def insert_medi_cal_hcp_status(dw, chunk_number):
     df_columns = ['cin', 'source_date', 'eligibility_date', 'health_care_plan_status',
                   'health_care_plan_code', 'cardinal']
 
     dw = convert_nans_to_nones(dw, df_columns)
     
     sql = """
-          INSERT INTO client_hcp_status
+          INSERT INTO medi_cal_hcp_status
           (cin, source_date, eligibility_date, hcp_status_code, hcp_code, cardinal)
           VAlUES (%s, %s, %s, %s, %s, %s); """
 
@@ -430,21 +387,21 @@ def make_socmc_column(dw):
                                    on=['cin','eligibility_date'], rsuffix='_r').loc[:,'socmc_r']
     return dw
 
-def insert_client_derived_status(df):
-    sql = """INSERT INTO client_derived_status
+def insert_medi_cal_derived_status(df, chunk_number):
+    sql = """INSERT INTO medi_cal_derived_status
           (cin, source_date, eligibility_date, rank, primary_aidcode, disabled,
            foster, retro, ssi, ccs, ihss, soc, primary_county_code)
           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
     
-    client_derived_columns = ['cin', 'source_date', 'eligibility_date', 'mcrank',
+    medi_cal_derived_columns = ['cin', 'source_date', 'eligibility_date', 'mcrank',
                               'primary_aidcode', 'disabled', 'foster', 'retromc',
                               'ssi', 'ccsaidcode', 'ihssaidcode', 'socmc',
                               'eligibility_county_code']
 
-    df = convert_nans_to_nones(df, client_derived_columns)
+    df = convert_nans_to_nones(df, medi_cal_derived_columns)
 
     try:
-        cur.executemany(sql, df[client_derived_columns].values)
+        cur.executemany(sql, df[medi_cal_derived_columns].values)
     except psycopg2.IntegrityError as e:
         if e.pgcode == '23505':
             print('Some derived_status rows in chunk {} have already been inserted'.format(chunk_number))
@@ -467,69 +424,67 @@ def no_nulls(dw):
     dw.loc[:,no_null_cols] = dw[no_null_cols].fillna(False)
     return dw
 
-def update_client_names():
+def update_medi_cal_names():
     sql = """
-    INSERT INTO client_names (cin, source_date, first_name,
+    INSERT INTO medi_cal_names (cin, source_date, first_name,
          middle_initial, last_name, suffix)
     SELECT S.cin, S.source_date, S.first_name, S.middle_initial, 
          S.last_name, S.suffix
     FROM staging_names S
-         LEFT JOIN client_names C
-         ON S.cin = C.cin
-    WHERE S.first_name IS DISTINCT FROM C.first_name
-         OR S.last_name IS DISTINCT FROM C.last_name
-         OR S.middle_initial IS DISTINCT FROM C.middle_initial
-         OR S.suffix IS DISTINCT FROM C.suffix
+         LEFT JOIN medi_cal_names M
+         ON S.cin = M.cin
+    WHERE S.first_name IS DISTINCT FROM M.first_name
+         OR S.last_name IS DISTINCT FROM M.last_name
+         OR S.middle_initial IS DISTINCT FROM M.middle_initial
+         OR S.suffix IS DISTINCT FROM M.suffix
     """
 
     cur.execute(sql)
 
-def update_client_addresses():
+def update_medi_cal_addresses():
     sql = """
-    INSERT INTO client_addresses (cin, source_date, street_address,
+    INSERT INTO medi_cal_addresses (cin, source_date, street_address,
          city, state, zip)
     SELECT S.cin, S.source_date, S.street_address, S.city,
          S.state, S.zip
     FROM staging_addresses S
-         LEFT JOIN client_addresses C
-         ON S.cin = C.cin
-    WHERE S.street_address IS DISTINCT FROM C.street_address
-         OR S.city IS DISTINCT FROM C.street_address
-         OR S.state IS DISTINCT FROM C.state
-         OR S.zip IS DISTINCT FROM C.zip
+         LEFT JOIN medi_cal_addresses M
+         ON S.cin = M.cin
+    WHERE S.street_address IS DISTINCT FROM M.street_address
+         OR S.city IS DISTINCT FROM M.city
+         OR S.state IS DISTINCT FROM M.state
+         OR S.zip IS DISTINCT FROM M.zip
     """
 
     cur.execute(sql)
     
-def process_chunk(df, chunk_number, chunksize, dupemask):
+def process_chunk(params):
+    chunk_number, df, chunksize, dupemask = params
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
-    create_staging_tables()
+
     populate_staging_attributes(df)
     populate_staging_names(df)
     populate_staging_addresses(df)
-    populate_new_cins_table()
     conn.commit()
-    insert_new_client_attributes()
-    insert_new_client_names()
-    insert_new_client_addresses()
-    update_client_names()
-    update_client_addresses()
-    update_client_attributes()
+    insert_new_medi_cal_attributes()
+    update_medi_cal_names()
+    update_medi_cal_addresses()
+    update_medi_cal_attributes()
     conn.commit()
 
     df = wide_to_long_by_month(df, month_stubs)
     df = create_eligibility_date_column(df)
-    insert_client_eligibility_base(df, chunk_number)
+    insert_medi_cal_eligibility_base(df, chunk_number)
     conn.commit()
 
     dw = wide_to_long(df, hcp_stubs)
-    insert_client_hcp_status(dw)
+    insert_medi_cal_hcp_status(dw, chunk_number)
     conn.commit()
     del dw
     
     dw = wide_to_long(df, aidcode_stubs)
-    insert_client_eligibility_status(dw)
+    insert_medi_cal_eligibility_status(dw, chunk_number)
     conn.commit()
 
     df_aidcodes = get_aidcode_info()
@@ -555,15 +510,48 @@ def process_chunk(df, chunk_number, chunksize, dupemask):
     dw = keep_best_mcrank(dw)
     dw = no_nulls(dw)
 
-    insert_client_derived_status(dw)
+    insert_medi_cal_derived_status(dw, chunk_number)
 
-    
+def adapt_nans(null):
+    a = adapt(None).getquoted()
+    return AsIs(a)
+
+register_adapter(np.NaN, adapt_nans)
+
+def process_arguments():
+    parser = argparse.ArgumentParser(description='Process Medi-Cal File.')
+    parser.add_argument('infile', 
+                        nargs = '?',
+                        default = config.medical_file,
+                        help = 'Location of Medi-Cal file to process.')
+    parser.add_argument('-o', '--outfile',
+                        default = config.explode_file,
+                        help = 'File name and path of output file.')
+    parser.add_argument('-s', '--single-process',
+                        action = 'store_true',
+                        help = 'Run in a single process. Default is multi-process.')
+    return parser.parse_args()
+
+def multi_process_run(params):
+    pool = mp.Pool(mp.cpu_count()/2)
+    for i, df in pool.imap_unordered(process_chunk, params):
+        print('Processing chunk {}.'.format(i))
+    pool.close()
+    pool.join()
+
+def single_process_run(params):
+    for chunk in params:
+        process_chunk(chunk)
+
 if __name__ == "__main__":
     #Aidcodes that indicate specific statuses.
     ssicodes = ['10','20','60']
     ccscodes = ['9K','9M','9N','9R','9U','9V','9W']
     ihsscodes = ['2L','2M','2N']
 
+    #Parse command line arguments.
+    args = process_arguments()
+        
     aidcode_stubs = ['aidcode', 'eligibility_status', 'responsible_county']
     
     hcp_stubs = ['health_care_plan_status', 'health_care_plan_code']
@@ -599,8 +587,11 @@ if __name__ == "__main__":
                                         iterator = True,
                                         chunksize = chunksize)
 
-    for chunk_number, chunk in enumerate(chunked_data_iterator):
-        with psycopg2.connect(database="medical", user='greg') as conn:
-            with conn.cursor() as cur:
-                process_chunk(chunk, chunk_number, chunksize, dupemask)
-
+    with psycopg2.connect(database="medical", user='greg') as conn:
+        with conn.cursor() as cur:
+            create_staging_tables()
+            params = ((x[0], x[1], chunksize, dupemask) for x in enumerate(chunked_data_iterator))
+            if args.single_process:
+                single_process_run(params)
+            else:
+                multi_process_run(params)

@@ -32,7 +32,7 @@ CREATE TABLE "rules_hcp_status_codes" (
 
 CREATE TYPE sex_enum AS ENUM ('Male','Female','Intersex','Unknown','Other');
 
-CREATE TABLE "client_attributes" (
+CREATE TABLE "medi_cal_attributes" (
        -- cin = client index number
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
@@ -46,19 +46,19 @@ CREATE TABLE "client_attributes" (
        "primary_language" TEXT, --Make table to constrain to.
        			  	--Store English term, not code.
        				--Or use enums for lang/ethnicity?
-       CONSTRAINT client_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
-       CONSTRAINT client_attributes_CK_meds_id_length CHECK
+       CONSTRAINT medi_cal_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
+       CONSTRAINT medi_cal_attributes_CK_meds_id_length CHECK
        		  (char_length(meds_id) <= 9),
-       CONSTRAINT client_attributes_CK_hic_number_length CHECK
+       CONSTRAINT medi_cal_attributes_CK_hic_number_length CHECK
        		  (char_length(health_insurance_claim_number) <= 9),
-       CONSTRAINT client_attributes_CK_hic_suffix_length CHECK
+       CONSTRAINT medi_cal_attributes_CK_hic_suffix_length CHECK
        		  (char_length(health_insurance_claim_suffix) <= 2),
-       CONSTRAINT client_attributes_CK_date CHECK 
+       CONSTRAINT medi_cal_attributes_CK_date CHECK 
        		  (date_of_birth > to_date('1895-01-01','YYYY-MM-DD')),
-       CONSTRAINT client_attributes_UQ_cin UNIQUE (cin)
+       CONSTRAINT medi_cal_attributes_UQ_cin UNIQUE (cin)
 );
 
-CREATE TABLE "client_names" (
+CREATE TABLE "medi_cal_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE,
@@ -66,11 +66,11 @@ CREATE TABLE "client_names" (
        "middle_initial" TEXT,
        "last_name" TEXT,
        "suffix" TEXT,
-       CONSTRAINT client_names_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT medi_cal_names_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT
 );
 
-CREATE TABLE "client_addresses" (
+CREATE TABLE "medi_cal_addresses" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE NOT NULL,
@@ -78,11 +78,11 @@ CREATE TABLE "client_addresses" (
        "city" TEXT,
        "state" TEXT, --Constrain to list?
        "zip" TEXT, --Constrain length, digits only.
-       CONSTRAINT client_addresses_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT medi_cal_addresses_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT
 );
 
-CREATE TABLE "client_eligibility_base" (
+CREATE TABLE "medi_cal_eligibility_base" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE NOT NULL,
@@ -98,20 +98,20 @@ CREATE TABLE "client_eligibility_base" (
        "special_obligation" TEXT,
        "healthy_families_date" DATE,
        "other_health_coverage" TEXT, --Constrain to list, constrain by length.
-       CONSTRAINT client_eligibility_base_UQ_cin_date_date UNIQUE
+       CONSTRAINT medi_cal_eligibility_base_UQ_cin_date_date UNIQUE
        		  (cin, source_date, eligibility_date),
-       CONSTRAINT client_eligibility_base_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
-       CONSTRAINT client_eligiblity_base_FK_resident_county FOREIGN KEY (resident_county)
+       CONSTRAINT medi_cal_eligibility_base_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT,
+       CONSTRAINT medi_cal_eligiblity_base_FK_resident_county FOREIGN KEY (resident_county)
        		  REFERENCES rules_county_codes (county_code) ON DELETE RESTRICT,
-       CONSTRAINT client_eligibility_base_CK_medicare_status CHECK
+       CONSTRAINT medi_cal_eligibility_base_CK_medicare_status CHECK
        		  (char_length(medicare_status) <= 3),
-       CONSTRAINT client_eligibility_base_CK_carrier_code CHECK (char_length(carrier_code) <= 4),
-       CONSTRAINT client_eligibility_base_CK_federal_contract_number CHECK
+       CONSTRAINT medi_cal_eligibility_base_CK_carrier_code CHECK (char_length(carrier_code) <= 4),
+       CONSTRAINT medi_cal_eligibility_base_CK_federal_contract_number CHECK
        		  (length(federal_contract_number) <= 5)
 );
 
-CREATE TABLE "client_hcp_status" (
+CREATE TABLE "medi_cal_hcp_status" (
        --HCP = Health Care Plan
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
@@ -120,16 +120,16 @@ CREATE TABLE "client_hcp_status" (
        "cardinal" SMALLINT,
        "hcp_status_code" TEXT,
        "hcp_code" TEXT,
-       CONSTRAINT client_hcp_status_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT,
-       CONSTRAINT client_hcp_status_CK_cardinal CHECK (cardinal IN (0,1,2)),
-       CONSTRAINT client_hcp_status_FK_hcp_status FOREIGN KEY (hcp_status_code)
+       CONSTRAINT medi_cal_hcp_status_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT,
+       CONSTRAINT medi_cal_hcp_status_CK_cardinal CHECK (cardinal IN (0,1,2)),
+       CONSTRAINT medi_cal_hcp_status_FK_hcp_status FOREIGN KEY (hcp_status_code)
        		  REFERENCES rules_hcp_status_codes (code) ON DELETE RESTRICT,
-       CONSTRAINT client_hcp_status_UQ_cin_date_date_cardinal UNIQUE
+       CONSTRAINT medi_cal_hcp_status_UQ_cin_date_date_cardinal UNIQUE
        		  (cin, source_date, eligibility_date, cardinal)
 );
 
-CREATE TABLE "client_eligibility_status" (
+CREATE TABLE "medi_cal_eligibility_status" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE NOT NULL,
@@ -138,18 +138,18 @@ CREATE TABLE "client_eligibility_status" (
        "aidcode" TEXT,
        "eligibility_status" TEXT, --Still needs a constraint.(needs table of valid statuses)
        "responsible_county" TEXT,
-       CONSTRAINT client_eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
-       /*CONSTRAINT client_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
+       CONSTRAINT medi_cal_eligibility_status_CK_cardinal_size CHECK (cardinal IN (0,1,2,3)),
+       /*CONSTRAINT medi_cal_eligibility_status_FK_aidcode FOREIGN KEY (aidcode) 
        		  REFERENCES rules_aidcodes (aidcode) ON DELETE RESTRICT,*/
-       CONSTRAINT client_eligibility_status_UQ_cin_date_date_cardinal UNIQUE
+       CONSTRAINT medi_cal_eligibility_status_UQ_cin_date_date_cardinal UNIQUE
        		  (cin, source_date, eligibility_date, cardinal),
-       CONSTRAINT client_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
+       CONSTRAINT medi_cal_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
        		  REFERENCES rules_county_codes (county_code) ON DELETE RESTRICT,
-       CONSTRAINT client_eligibility_status_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES client_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT medi_cal_eligibility_status_FK_cin FOREIGN KEY (cin)
+       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT
 );
 
-CREATE TABLE "client_derived_status" (
+CREATE TABLE "medi_cal_derived_status" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
        "source_date" DATE NOT NULL,
@@ -164,7 +164,7 @@ CREATE TABLE "client_derived_status" (
        "ccs" BOOLEAN NOT NULL,
        "ihss" BOOLEAN NOT NULL,
        "soc" BOOLEAN NOT NULL,
-       CONSTRAINT client_derived_status_UQ_cin_date_date UNIQUE
+       CONSTRAINT medi_cal_derived_status_UQ_cin_date_date UNIQUE
        		  (cin, source_date, eligibility_date)
 );
        
@@ -174,7 +174,7 @@ CREATE TABLE "rules_hcp_codes" (
        "plan_name" TEXT NOT NULL
        )
 /*
-INSERT INTO client_eligibility_status (cin, "date", cardinal, aidcode) 
+INSERT INTO medi_cal_eligibility_status (cin, "date", cardinal, aidcode) 
 VALUES 
        ('999999999', to_date('2012-12-20','YYYY-MM-DD'), 3, '0C')
        ('999999999', to_date('2012-12-20','YYYY-MM-DD'), 2, null)
