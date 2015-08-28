@@ -36,6 +36,7 @@ CREATE TABLE "medi_cal_attributes" (
        -- cin = client index number
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
+       "source_date" DATE NOT NULL,
        "date_of_birth" DATE,
        "meds_id" TEXT,
        "health_insurance_claim_number" TEXT, 
@@ -55,7 +56,7 @@ CREATE TABLE "medi_cal_attributes" (
        		  (char_length(health_insurance_claim_suffix) <= 2),
        CONSTRAINT medi_cal_attributes_CK_date CHECK 
        		  (date_of_birth > to_date('1895-01-01','YYYY-MM-DD')),
-       CONSTRAINT medi_cal_attributes_UQ_cin UNIQUE (cin)
+       CONSTRAINT medi_cal_attributes_UQ_cin_date UNIQUE (cin, source_date)
 );
 
 CREATE TABLE "medi_cal_names" (
@@ -66,8 +67,8 @@ CREATE TABLE "medi_cal_names" (
        "middle_initial" TEXT,
        "last_name" TEXT,
        "suffix" TEXT,
-       CONSTRAINT medi_cal_names_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT medi_cal_names_FK_cin_date FOREIGN KEY (cin, source_date)
+       		  REFERENCES medi_cal_attributes (cin, source_date) ON DELETE RESTRICT
 );
 
 CREATE TABLE "medi_cal_addresses" (
@@ -78,8 +79,8 @@ CREATE TABLE "medi_cal_addresses" (
        "city" TEXT,
        "state" TEXT, --Constrain to list?
        "zip" TEXT, --Constrain length, digits only.
-       CONSTRAINT medi_cal_addresses_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT medi_cal_addresses_FK_cin_date FOREIGN KEY (cin, source_date)
+       		  REFERENCES medi_cal_attributes (cin, source_date) ON DELETE RESTRICT
 );
 
 CREATE TABLE "medi_cal_eligibility_base" (
@@ -100,8 +101,8 @@ CREATE TABLE "medi_cal_eligibility_base" (
        "other_health_coverage" TEXT, --Constrain to list, constrain by length.
        CONSTRAINT medi_cal_eligibility_base_UQ_cin_date_date UNIQUE
        		  (cin, source_date, eligibility_date),
-       CONSTRAINT medi_cal_eligibility_base_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT,
+       CONSTRAINT medi_cal_eligibility_base_FK_cin_date FOREIGN KEY (cin, source_date)
+       		  REFERENCES medi_cal_attributes (cin, source_date) ON DELETE RESTRICT,
        CONSTRAINT medi_cal_eligiblity_base_FK_resident_county FOREIGN KEY (resident_county)
        		  REFERENCES rules_county_codes (county_code) ON DELETE RESTRICT,
        CONSTRAINT medi_cal_eligibility_base_CK_medicare_status CHECK
@@ -120,8 +121,8 @@ CREATE TABLE "medi_cal_hcp_status" (
        "cardinal" SMALLINT,
        "hcp_status_code" TEXT,
        "hcp_code" TEXT,
-       CONSTRAINT medi_cal_hcp_status_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT,
+       CONSTRAINT medi_cal_hcp_status_FK_cin_date FOREIGN KEY (cin, source_date)
+       		  REFERENCES medi_cal_attributes (cin, source_date) ON DELETE RESTRICT,
        CONSTRAINT medi_cal_hcp_status_CK_cardinal CHECK (cardinal IN (0,1,2)),
        CONSTRAINT medi_cal_hcp_status_FK_hcp_status FOREIGN KEY (hcp_status_code)
        		  REFERENCES rules_hcp_status_codes (code) ON DELETE RESTRICT,
@@ -145,8 +146,8 @@ CREATE TABLE "medi_cal_eligibility_status" (
        		  (cin, source_date, eligibility_date, cardinal),
        CONSTRAINT medi_cal_eligibility_status_FK_responsible_county FOREIGN KEY (responsible_county)
        		  REFERENCES rules_county_codes (county_code) ON DELETE RESTRICT,
-       CONSTRAINT medi_cal_eligibility_status_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES medi_cal_attributes (cin) ON DELETE RESTRICT
+       CONSTRAINT medi_cal_eligibility_status_FK_cin_date FOREIGN KEY (cin, source_date)
+       		  REFERENCES medi_cal_attributes (cin, source_date) ON DELETE RESTRICT
 );
 
 CREATE TABLE "medi_cal_derived_status" (
@@ -172,7 +173,7 @@ CREATE TABLE "rules_hcp_codes" (
        "id" SMALLSERIAL PRIMARY KEY,
        "plan_code" TEXT NOT NULL,
        "plan_name" TEXT NOT NULL
-       )
+);
 /*
 INSERT INTO medi_cal_eligibility_status (cin, "date", cardinal, aidcode) 
 VALUES 
