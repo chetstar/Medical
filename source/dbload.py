@@ -45,89 +45,39 @@ def set_language(df):
     df.loc[:,'language_code'] = df['language_code'].map(language_map)
     return df
 
-def create_staging_tables():
-    sql = """
-CREATE TEMP TABLE "staging_attributes" (
-       "id" BIGSERIAL PRIMARY KEY,
-       "cin" TEXT NOT NULL,
-       "date_of_birth" DATE,
-       "meds_id" TEXT,
-       "health_insurance_claim_number" TEXT, 
-       "health_insurance_claim_suffix" TEXT,
-       "ethnicity" TEXT, --Make table to constrain to. Store English term, not code.
-       "sex" SEX_ENUM, 
-       "primary_language" TEXT, --Make table to constrain to. Store English term, not code.
-       CONSTRAINT staging_attributes_CK_cin_length CHECK (char_length(cin) <= 9),
-       CONSTRAINT staging_attributes_CK_meds_id_length CHECK (char_length(meds_id) <= 9),
-       CONSTRAINT staging_attributes_CK_hic_number_length CHECK 
-                  (char_length(health_insurance_claim_number) <= 9),
-       CONSTRAINT staging_attributes_CK_hic_suffix_length CHECK 
-                  (char_length(health_insurance_claim_suffix) <= 2),
-       CONSTRAINT staging_attributes_CK_date CHECK 
-       		  (date_of_birth > to_date('1895-01-01','YYYY-MM-DD')),
-       CONSTRAINT staging_attributes_UQ_cin UNIQUE (cin)
-);
-
-CREATE TEMP TABLE "staging_names" (
-       "id" BIGSERIAL PRIMARY KEY,
-       "cin" TEXT NOT NULL,
-       "source_date" DATE,
-       "first_name" TEXT,
-       "middle_initial" TEXT,
-       "last_name" TEXT,
-       "suffix" TEXT,
-       CONSTRAINT staging_names_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT
-);
-
-CREATE TEMP TABLE "staging_addresses" (
-       "id" BIGSERIAL PRIMARY KEY,
-       "cin" TEXT NOT NULL,
-       "source_date" DATE NOT NULL,
-       "street_address" TEXT,
-       "unit" TEXT,
-       "city" TEXT,
-       "state" TEXT,
-       "zip" TEXT,
-       CONSTRAINT staging_addresses_FK_cin FOREIGN KEY (cin)
-       		  REFERENCES staging_attributes (cin) ON DELETE RESTRICT       
-)
-"""
-    cur.execute(sql)
-
-def populate_staging_attributes(df):
+def insert_medi_cal_attributes(df):
     df = set_sex(df)
     df = format_date_of_birth(df)
     df = set_ethnicity(df)
     df = set_language(df)
 
-    df_columns = ['cin', 'date_of_birth', 'meds_id', 'hic_number', 
-                  'hic_suffix', 'ethnicity_code', 'gender', 'language_code']
+    df_columns = ['cin', 'source_date', 'date_of_birth', 'meds_id',
+                  'hic_number', 'hic_suffix', 'ethnicity_code',
+                  'gender', 'language_code']
 
-    sql = """INSERT INTO staging_attributes 
-             (cin, date_of_birth, meds_id, health_insurance_claim_number,
-             health_insurance_claim_suffix, ethnicity, sex, primary_language)
-             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+    sql = """
+    INSERT INTO medi_cal_attributes
+        (cin, source_date, date_of_birth, meds_id, 
+         health_insurance_claim_number, health_insurance_claim_suffix, 
+         ethnicity, sex, primary_language)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
 
     cur.executemany(sql, df[df_columns].values)
 
-def populate_staging_names(df):
+def insert_medi_cal_names(df):
     name_columns = ['cin', 'first_name', 'middle_initial', 'last_name',
                     'name_suffix', 'source_date']
 
-    sql = """INSERT INTO staging_names
-             (cin, first_name, middle_initial, last_name, suffix, source_date)
-             VALUES (%s, %s, %s, %s, %s, %s)"""
+    sql = """
+    INSERT INTO medi_cal_names
+        (cin, first_name, middle_initial, last_name, suffix, source_date)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """
 
     cur.executemany(sql, df[name_columns].values)
         
-def create_source_date_column(df):
-    source_date = datetime(int(df['eligibility_year_0'][df.index[0]]),
-                           int(df['eligibility_month_0'][df.index[0]]), 1)
-    df['source_date'] = source_date
-    return df
-
-def populate_staging_addresses(df):
+def insert_medi_cal_addresses(df):
     df['street_address'] = (df['address_line_1'].fillna('') + ' ' +
                             df['address_line_2'])
     df['street_address'].str.strip()
@@ -135,56 +85,19 @@ def populate_staging_addresses(df):
     df_columns = ['cin', 'street_address', 'address_state',
                   'address_city', 'address_zip_code', 'source_date']
 
-    sql = """INSERT INTO staging_addresses
-             (cin, street_address, state, city, zip, source_date)
-             VALUES (%s, %s, %s, %s, %s, %s)"""
-
-    cur.executemany(sql, df[df_columns].values)
-                
-def insert_new_medi_cal_attributes():
-    sql = """--Insert attributes for new clients
-          INSERT INTO medi_cal_attributes
-              (cin, date_of_birth, meds_id, health_insurance_claim_number, 
-               health_insurance_claim_suffix, ethnicity, sex, primary_language)
-          SELECT S.cin, S.date_of_birth, S.meds_id, 
-              S.health_insurance_claim_number, S.health_insurance_claim_suffix, 
-              S.ethnicity, S.sex, S.primary_language
-          FROM staging_attributes S
-              LEFT JOIN medi_cal_attributes M
-              ON S.cin = M.cin
-          WHERE M.id IS NULL"""
-
-    cur.execute(sql)
-
-def update_medi_cal_attributes():
     sql = """
-    UPDATE medi_cal_attributes 
-    SET cin = S.cin,
-        date_of_birth = S.date_of_birth,
-        meds_id = S.meds_id,
-        health_insurance_claim_number = S.health_insurance_claim_number,
-        health_insurance_claim_suffix = S.health_insurance_claim_suffix,
-        ethnicity = S.ethnicity,
-        sex = S.sex,
-        primary_language = S.primary_language
-    FROM (SELECT S.cin, S.date_of_birth, S.meds_id,
-              S.health_insurance_claim_number, S.health_insurance_claim_suffix,
-              S.ethnicity, S.sex, S.primary_language
-         FROM staging_attributes S
-              LEFT JOIN medi_cal_attributes M
-              ON S.cin = M.cin
-         WHERE S.date_of_birth IS DISTINCT FROM M.date_of_birth
-              OR S.meds_id IS DISTINCT FROM M.meds_id
-              OR S.health_insurance_claim_number IS DISTINCT FROM 
-                  M.health_insurance_claim_number
-              OR S.health_insurance_claim_suffix IS DISTINCT FROM
-                  M.health_insurance_claim_suffix
-              OR S.ethnicity IS DISTINCT FROM M.ethnicity
-              OR S.sex IS DISTINCT FROM M.sex
-              OR S.primary_language IS DISTINCT FROM M.primary_language) S
+    INSERT INTO medi_cal_addresses
+        (cin, street_address, state, city, zip, source_date)
+    VALUES (%s, %s, %s, %s, %s, %s)
     """
-    cur.execute(sql)
+    cur.executemany(sql, df[df_columns].values)
 
+def create_source_date_column(df):
+    source_date = datetime(int(df['eligibility_year_0'][df.index[0]]),
+                           int(df['eligibility_month_0'][df.index[0]]), 1)
+    df['source_date'] = source_date
+    return df
+    
 def insert_medi_cal_eligibility_base(df, chunk_number):
     df_columns = ['cin', 'source_date', 'resident_county',
                   'share_of_cost_amount', 'medicare_status', 'carrier_code',
@@ -193,17 +106,20 @@ def insert_medi_cal_eligibility_base(df, chunk_number):
                   'eligibility_date', 'other_health_coverage']
 
     sql = """
-          INSERT INTO medi_cal_eligibility_base
-              (cin, source_date, resident_county, soc_amount, medicare_status, carrier_code, 
-               federal_contract_number, plan_id, plan_type, surs_code, special_obligation,
-               healthy_families_date, eligibility_date, other_health_coverage)
-          VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);"""
+    INSERT INTO medi_cal_eligibility_base
+        (cin, source_date, resident_county, soc_amount, medicare_status, 
+         carrier_code, federal_contract_number, plan_id, plan_type, surs_code, 
+         special_obligation, healthy_families_date, eligibility_date, 
+         other_health_coverage)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
     
     try:
         cur.executemany(sql, df[df_columns].values)
     except psycopg2.IntegrityError as e:
         if e.pgcode == '23505':
-            print('Some eligibility_base rows in chunk {} have already been inserted'.format(chunk_number))
+            print('Some eligibility_base rows in chunk {} have already been inserted'
+                  .format(chunk_number))
             conn.commit()
         else:
             raise e
@@ -211,14 +127,16 @@ def insert_medi_cal_eligibility_base(df, chunk_number):
         conn.commit()
         
 def insert_medi_cal_eligibility_status(dw, chunk_number):
-    eligibility_status_columns = ['cin', 'source_date', 'eligibility_date', 'cardinal', 'aidcode',
-                  'eligibility_status', 'responsible_county']
+    eligibility_status_columns = ['cin', 'source_date', 'eligibility_date',
+                                  'cardinal', 'aidcode', 'eligibility_status',
+                                  'responsible_county']
 
     sql = """
-          INSERT INTO medi_cal_eligibility_status
-              (cin, source_date, eligibility_date, cardinal, aidcode, eligibility_status,
-               responsible_county)
-          VALUES (%s, %s, %s, %s, %s, %s, %s); """
+    INSERT INTO medi_cal_eligibility_status
+        (cin, source_date, eligibility_date, cardinal, 
+         aidcode, eligibility_status, responsible_county)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
     
     try:
         cur.executemany(sql, dw[eligibility_status_columns].values)
@@ -274,8 +192,9 @@ def get_aidcode_info():
     """Get data from info_aidcodes table and put it into df_aidcodes"""
     
     sql = """
-          SELECT aidcode, federal_financial_participation, fully_covered, disabled, foster
-          FROM rules_aidcodes """
+    SELECT aidcode, federal_financial_participation, fully_covered, disabled, foster
+    FROM rules_aidcodes
+    """
 
     cur.execute(sql)
     records = cur.fetchall()
@@ -412,12 +331,6 @@ def update_medi_cal_names():
     SELECT S.cin, S.source_date, S.first_name, S.middle_initial, 
          S.last_name, S.suffix
     FROM staging_names S
-         LEFT JOIN medi_cal_names M
-         ON S.cin = M.cin
-    WHERE S.first_name IS DISTINCT FROM M.first_name
-         OR S.last_name IS DISTINCT FROM M.last_name
-         OR S.middle_initial IS DISTINCT FROM M.middle_initial
-         OR S.suffix IS DISTINCT FROM M.suffix
     """
 
     cur.execute(sql)
@@ -429,12 +342,6 @@ def update_medi_cal_addresses():
     SELECT S.cin, S.source_date, S.street_address, S.city,
          S.state, S.zip
     FROM staging_addresses S
-         LEFT JOIN medi_cal_addresses M
-         ON S.cin = M.cin
-    WHERE S.street_address IS DISTINCT FROM M.street_address
-         OR S.city IS DISTINCT FROM M.city
-         OR S.state IS DISTINCT FROM M.state
-         OR S.zip IS DISTINCT FROM M.zip
     """
 
     cur.execute(sql)
@@ -444,21 +351,17 @@ def process_chunk(params):
     df = common.drop_duplicate_rows(df, chunk_number, chunksize, dupemask)
     df = create_source_date_column(df)
 
-    populate_staging_attributes(df)
-    populate_staging_names(df)
-    populate_staging_addresses(df)
+    insert_medi_cal_attributes(df)
+    insert_medi_cal_names(df)
+    insert_medi_cal_addresses(df)
     conn.commit()
-    insert_new_medi_cal_attributes()
-    update_medi_cal_names()
-    update_medi_cal_addresses()
-    update_medi_cal_attributes()
-    conn.commit()
-
+    
     df = wide_to_long_by_month(df, month_stubs)
+
     df = create_eligibility_date_column(df)
     insert_medi_cal_eligibility_base(df, chunk_number)
     conn.commit()
-
+    
     dw = wide_to_long(df, hcp_stubs)
     insert_medi_cal_hcp_status(dw, chunk_number)
     conn.commit()
@@ -574,7 +477,7 @@ if __name__ == "__main__":
 
     with psycopg2.connect(database="medical", user='greg') as conn:
         with conn.cursor() as cur:
-            create_staging_tables()
+
             params = ((x[0], x[1], chunksize, dupemask) for x in enumerate(chunked_data_iterator))
             if args.single_process:
                 single_process_run(params)
