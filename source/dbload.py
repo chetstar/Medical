@@ -94,11 +94,6 @@ CREATE TEMP TABLE "staging_addresses" (
 )
 """
     cur.execute(sql)
-    
-def convert_nans_to_nones(df, df_columns):
-    """Set np.nan to None because psycopg2 doesn't correctly convert np.nan."""
-    df.loc[:,df_columns] = df[df_columns].where(pd.notnull((df[df_columns])), None)
-    return df
 
 def populate_staging_attributes(df):
     df = set_sex(df)
@@ -109,8 +104,6 @@ def populate_staging_attributes(df):
     df_columns = ['cin', 'date_of_birth', 'meds_id', 'hic_number', 
                   'hic_suffix', 'ethnicity_code', 'gender', 'language_code']
 
-    df = convert_nans_to_nones(df, df_columns)
-    
     sql = """INSERT INTO staging_attributes 
              (cin, date_of_birth, meds_id, health_insurance_claim_number,
              health_insurance_claim_suffix, ethnicity, sex, primary_language)
@@ -121,8 +114,6 @@ def populate_staging_attributes(df):
 def populate_staging_names(df):
     name_columns = ['cin', 'first_name', 'middle_initial', 'last_name',
                     'name_suffix', 'source_date']
-
-    df = convert_nans_to_nones(df, name_columns)
 
     sql = """INSERT INTO staging_names
              (cin, first_name, middle_initial, last_name, suffix, source_date)
@@ -144,8 +135,6 @@ def populate_staging_addresses(df):
     df_columns = ['cin', 'street_address', 'address_state',
                   'address_city', 'address_zip_code', 'source_date']
 
-    df = convert_nans_to_nones(df, df_columns)
-    
     sql = """INSERT INTO staging_addresses
              (cin, street_address, state, city, zip, source_date)
              VALUES (%s, %s, %s, %s, %s, %s)"""
@@ -203,8 +192,6 @@ def insert_medi_cal_eligibility_base(df, chunk_number):
                   'surs_code', 'special_obligation', 'healthy_families_date',
                   'eligibility_date', 'other_health_coverage']
 
-    df = convert_nans_to_nones(df, df_columns)
-
     sql = """
           INSERT INTO medi_cal_eligibility_base
               (cin, source_date, resident_county, soc_amount, medicare_status, carrier_code, 
@@ -226,8 +213,6 @@ def insert_medi_cal_eligibility_base(df, chunk_number):
 def insert_medi_cal_eligibility_status(dw, chunk_number):
     eligibility_status_columns = ['cin', 'source_date', 'eligibility_date', 'cardinal', 'aidcode',
                   'eligibility_status', 'responsible_county']
-
-    dw = convert_nans_to_nones(dw, eligibility_status_columns)
 
     sql = """
           INSERT INTO medi_cal_eligibility_status
@@ -265,8 +250,6 @@ def insert_medi_cal_hcp_status(dw, chunk_number):
     df_columns = ['cin', 'source_date', 'eligibility_date', 'health_care_plan_status',
                   'health_care_plan_code', 'cardinal']
 
-    dw = convert_nans_to_nones(dw, df_columns)
-    
     sql = """
           INSERT INTO medi_cal_hcp_status
           (cin, source_date, eligibility_date, hcp_status_code, hcp_code, cardinal)
@@ -398,8 +381,6 @@ def insert_medi_cal_derived_status(df, chunk_number):
                               'ssi', 'ccsaidcode', 'ihssaidcode', 'socmc',
                               'eligibility_county_code']
 
-    df = convert_nans_to_nones(df, medi_cal_derived_columns)
-
     try:
         cur.executemany(sql, df[medi_cal_derived_columns].values)
     except psycopg2.IntegrityError as e:
@@ -512,11 +493,15 @@ def process_chunk(params):
 
     insert_medi_cal_derived_status(dw, chunk_number)
 
-def adapt_nans(null):
-    a = adapt(None).getquoted()
-    return AsIs(a)
+def nan_to_null(f,
+                _NULL=psycopg2.extensions.AsIs('NULL'),
+                _NaN=np.NaN,
+                _Float=psycopg2.extensions.Float):
+    if f is not _NaN:
+        return _Float(f)
+    return _NULL
 
-register_adapter(np.NaN, adapt_nans)
+register_adapter(float, nan_to_null)
 
 def process_arguments():
     parser = argparse.ArgumentParser(description='Process Medi-Cal File.')
