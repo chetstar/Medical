@@ -87,7 +87,6 @@ def insert_medi_cal_addresses(df):
     df.loc[:,'street_address'] = (df['address_line_1'].fillna('').str.strip()
                                   + ' ' +
                                   df['address_line_2'].fillna('').str.strip())
-    #df['street_address'].str.strip()
 
     df_columns = ['cin', 'street_address', 'address_state',
                   'address_city', 'address_zip_code', 'source_date']
@@ -364,7 +363,9 @@ if __name__ == "__main__":
                    'health_care_plan_status_s2', 'health_care_plan_code_s2']
     
     medical_file = config.medical_file
-
+    database_name = config.database_name
+    database_user = config.database_user
+    
     #Create bitmask used to remove duplicate rows and rows without a CIN.
     dupemask = make_duplicates_bitmask(medical_file)
 
@@ -383,7 +384,8 @@ if __name__ == "__main__":
                                         iterator = True,
                                         chunksize = chunksize)
 
-    with psycopg2.connect(database='medical', user='greg') as conn:
+    with psycopg2.connect(database = database_name,
+                          user = database_user) as conn:
         register_adapter(float, nan_to_null)
         with conn.cursor() as cur:
             params = ((x[0], x[1], chunksize, dupemask) for x in
