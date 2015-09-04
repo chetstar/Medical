@@ -21,7 +21,7 @@ def set_sex(df):
 
 def format_date_of_birth(df):
     """Convert date_of_birth from a string to a datetime object."""
-    df['date_of_birth'] = pd.to_datetime(df['date_of_birth'])
+    df.loc[:,['date_of_birth']] = pd.to_datetime(df['date_of_birth'])
     return df
 
 def set_ethnicity(df):
@@ -84,9 +84,10 @@ def insert_medi_cal_names(df):
     cur.executemany(sql, df[name_columns].values)
         
 def insert_medi_cal_addresses(df):
-    df['street_address'] = (df['address_line_1'].fillna('') + ' ' +
-                            df['address_line_2'])
-    df['street_address'].str.strip()
+    df.loc[:,'street_address'] = (df['address_line_1'].fillna('').str.strip()
+                                  + ' ' +
+                                  df['address_line_2'].fillna('').str.strip())
+    #df['street_address'].str.strip()
 
     df_columns = ['cin', 'street_address', 'address_state',
                   'address_city', 'address_zip_code', 'source_date']
@@ -202,11 +203,11 @@ def insert_medi_cal_derived_status(df, chunk_number):
 def create_source_date_column(df):
     source_date = datetime(int(df['eligibility_year_0'][df.index[0]]),
                            int(df['eligibility_month_0'][df.index[0]]), 1)
-    df['source_date'] = source_date
+    df.loc[:,'source_date'] = source_date
     return df
        
 def create_eligibility_date_column(df):
-    df['eligibility_date'] = pd.to_datetime(df['eligibility_year'] +
+    df.loc[:,'eligibility_date'] = pd.to_datetime(df['eligibility_year'] +
                                             df['eligibility_month'] + '01')
     return df
 
