@@ -53,14 +53,20 @@ def fuzzy_cutoff_match(city_name, city_name_list):
     else:
         return city_name
 
-def fix_city_names(df, city_name_list, city_map, zips):
-    """If a cityname is not in the city name list and the zipcode is in zips or is blank and the 
-    state is CA or is blank use fuzzy matching to fix the spelling of the cityname."""
-    start_time = datetime.datetime.now()
+def fix_city_names(df, city_name_list, zips):
+    """If a cityname is not in the city name list and the zipcode is in 
+    zips or is blank and the state is CA or is blank use fuzzy matching 
+    to fix the spelling of the cityname."""
+    #Dictionary to set blank, NaN and Transient city values.
+    city_map = {'TRANSIENT':'HOMELESS', '':'UNKNOWN', None:'UNKNOWN'}    
     df['city'] = df['city'].replace(city_map)
-    city_mask = -df['city'].isin(city_name_list) #Negate so we only get cities not in list.
-    state_mask = (df['state'].dropna() == 'CA').reindex(index = df.index, fill_value = True)
-    zip_mask = df['zip'].dropna().isin(zips).reindex(index = df.index, fill_value = True)
+
+    #Negate following so we only get cities not in list.
+    city_mask = -df['city'].isin(city_name_list)
+    state_mask = (df['state'].dropna() == 'CA').reindex(index = df.index,
+                                                        fill_value = True)
+    zip_mask = df['zip'].dropna().isin(zips).reindex(index = df.index,
+                                                     fill_value = True)
     masks = (city_mask & state_mask & zip_mask)
     df.loc[masks, 'city'] = df['city'][masks].apply(fuzzy_cutoff_match)
     elapsed_time = datetime.datetime.now()-start_time

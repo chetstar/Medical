@@ -13,3 +13,7 @@ WITH CSV;
 COPY rules_hcp_codes (plan_code, plan_name)
 FROM '/Users/greg/code/medical/db/db_hcp_text.csv'
 WITH CSV;
+
+COPY rules_city_names (city_name)
+FROM '/Users/greg/code/medical/db/db_city_names.csv'
+WITH CSV;

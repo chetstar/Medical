@@ -62,7 +62,7 @@ CREATE TABLE "medi_cal_attributes" (
 CREATE TABLE "medi_cal_names" (
        "id" BIGSERIAL PRIMARY KEY,
        "cin" TEXT NOT NULL,
-       "source_date" DATE,
+       "source_date" DATE NOT NULL,
        "first_name" TEXT,
        "middle_initial" TEXT,
        "last_name" TEXT,
@@ -174,14 +174,16 @@ CREATE TABLE "rules_hcp_codes" (
        "plan_code" TEXT NOT NULL,
        "plan_name" TEXT NOT NULL
 );
-/*
-INSERT INTO medi_cal_eligibility_status (cin, "date", cardinal, aidcode) 
-VALUES 
-       ('999999999', to_date('2012-12-20','YYYY-MM-DD'), 3, '0C')
-       ('999999999', to_date('2012-12-20','YYYY-MM-DD'), 2, null)
-       ;
-*/
 
+CREATE TABLE "rules_city_names" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "city_name" TEXT NOT NULL
+);
+
+CREATE TABLE "medi_cal_duplicates" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "row_text" TEXT
+);
 
 
        
