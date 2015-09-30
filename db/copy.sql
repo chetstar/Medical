@@ -17,3 +17,7 @@ WITH CSV;
 COPY rules_city_names (city_name)
 FROM '/Users/greg/code/medical/db/db_city_names.csv'
 WITH CSV;
+
+COPY rules_ethnicity_codes (ethnicity_code, ethnicity_text)
+FROM '/Users/greg/code/medical/db/db_ethnicity_codes.csv'
+WITH CSV;

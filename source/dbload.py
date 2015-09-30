@@ -306,8 +306,7 @@ def process_arguments():
 
 def multi_process_run(params):
     pool = mp.Pool(mp.cpu_count()//2)
-    for i, df in pool.imap_unordered(process_chunk, params):
-        print('Processing chunk {}.'.format(i))
+    pool.imap_unordered(process_chunk, params)
     pool.close()
     pool.join()
 

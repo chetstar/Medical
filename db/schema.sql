@@ -185,5 +185,9 @@ CREATE TABLE "medi_cal_duplicates" (
        "row_text" TEXT
 );
 
-
+CREATE TABLE "rules_ethnicity_codes" (
+       "id" SMALLSERIAL PRIMARY KEY,
+       "ethnicity_code" TEXT,
+       "ethnicity_text" TEXT
+);
        
